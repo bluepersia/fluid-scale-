@@ -26,7 +26,7 @@ function writeGlobal(docClone: DocClone) {
   };
 
   styleRule = sheet.addStyleRule();
-  styleRule.selector = "*, :before, ::after";
+  styleRule.selector = "*, ::before, ::after";
   styleRule.style = {
     "margin-top": "0px",
     "margin-right": "0px",

@@ -61,7 +61,7 @@ function writeProductCard(docClone: DocClone) {
   styleRule.selector = ".product-card__price";
   styleRule.style = {
     "column-gap": "1.35rem",
-    "row-gap": "1.35remx",
+    "row-gap": "1.35rem",
     "margin-bottom": "0px",
   };
 
@@ -105,7 +105,7 @@ function writeProductCard(docClone: DocClone) {
     "border-bottom-right-radius": "0.71rem",
     "max-height": "32.14rem",
   };
-  styleRule = mediaRule.addStyleRule();
+
   styleRule = mediaRule.addStyleRule();
   styleRule.selector = ".product-card__img--desktop";
   styleRule.style = {
