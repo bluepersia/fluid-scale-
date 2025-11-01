@@ -106,6 +106,7 @@ var FluidScale = (() => {
       }
       events.push(newEvent);
       this.uninitialized.push(newEvent);
+      return newEvent;
     }
     emitOnce(name, uuid, payload) {
       const uuidValue = typeof uuid === "string" ? uuid : uuid.eventUUID;
@@ -113,13 +114,13 @@ var FluidScale = (() => {
       if (!emitOnceEvents)
         this.emitOnceEvents[name] = emitOnceEvents = [];
       if (emitOnceEvents.find((event) => event.uuid === uuidValue))
-        return;
+        return null;
       emitOnceEvents.push({
         name,
         payload,
         uuid: uuidValue
       });
-      this.emit(name, uuid, payload);
+      return this.emit(name, uuid, payload);
     }
     getEventsForUUID(uuid) {
       return Object.values(this.events).flat().filter((event) => event.uuid === uuid);
@@ -831,35 +832,19 @@ var FluidScale = (() => {
     return styleRuleClone;
   };
   var cloneProp = (styleRule, prop, ctx) => {
-    const { isBrowser, event } = ctx;
+    const { event } = ctx;
     let { propsState } = ctx;
     let { style, specialProps } = propsState;
     if (FLUID_PROPERTY_NAMES.has(prop)) {
-      const shorthandMap = SHORTHAND_PROPERTIES[prop];
-      if (shorthandMap) {
-        if (isBrowser) {
-          event?.emit("propOmitted", ctx, {
-            why: "browserHandlesShorthands"
-          });
-          return propsState;
-        }
-        style = { ...style };
-        const values = splitBySpaces(styleRule.style.getPropertyValue(prop));
-        const valuesCount = values.length;
-        const innerShorthandMap = shorthandMap.get(valuesCount);
-        for (const [index, value] of values.entries()) {
-          const valueMap = innerShorthandMap.get(index);
-          for (const valueProp of valueMap) {
-            style[valueProp] = normalizeZero(value);
-          }
-        }
-        event?.emit("shorthandExpanded", ctx, { style });
-        return { style, specialProps };
+      const fluidPropResult = cloneFluidProp(styleRule, prop, { ...ctx, style });
+      if (event) {
+        event.emit(
+          fluidPropResult.event.name,
+          ctx,
+          fluidPropResult.event.payload
+        );
       }
-      style = { ...style };
-      style[prop] = normalizeZero(styleRule.style.getPropertyValue(prop));
-      event?.emit("fluidPropCloned", ctx, { prop, value: style[prop] });
-      return { style, specialProps };
+      return { style: fluidPropResult.style, specialProps };
     } else if (SPECIAL_PROPERTIES.has(prop)) {
       specialProps = { ...specialProps };
       specialProps[prop] = styleRule.style.getPropertyValue(prop);
@@ -868,6 +853,38 @@ var FluidScale = (() => {
     }
     event?.emit("propOmitted", ctx, { prop, why: "notFluidOrSpecial" });
     return propsState;
+  };
+  var cloneFluidProp = (styleRule, prop, ctx) => {
+    const { isBrowser, event } = ctx;
+    let { style } = ctx;
+    const shorthandMap = SHORTHAND_PROPERTIES[prop];
+    if (shorthandMap) {
+      if (isBrowser) {
+        const omitted = event?.emit("propOmitted", ctx, {
+          why: "browserHandlesShorthands"
+        });
+        return { style, event: omitted };
+      }
+      style = { ...style };
+      const values = splitBySpaces(styleRule.style.getPropertyValue(prop));
+      const valuesCount = values.length;
+      const innerShorthandMap = shorthandMap.get(valuesCount);
+      for (const [index, value] of values.entries()) {
+        const valueMap = innerShorthandMap.get(index);
+        for (const valueProp of valueMap) {
+          style[valueProp] = normalizeZero(value);
+        }
+      }
+      const expanded = event?.emit("shorthandExpanded", ctx, { style });
+      return { style, event: expanded };
+    }
+    style = { ...style };
+    style[prop] = normalizeZero(styleRule.style.getPropertyValue(prop));
+    const standardPropCloned = event?.emit("fluidPropCloned", ctx, {
+      prop,
+      value: style[prop]
+    });
+    return { style, event: standardPropCloned };
   };
   var cloneMediaRule = (mediaRule, ctx) => {
     const { event } = ctx;
@@ -895,7 +912,7 @@ var FluidScale = (() => {
   function normalizeSelector(selector) {
     return selector.replace(/\*::(before|after)\b/g, "::$1").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
   }
-  function wrap(cloneDocWrapped, getAccessibleSheetsWrapped, cloneRulesWrapped, cloneRuleWrapped, cloneStyleRuleWrapped, cloneMediaRuleWrapped, clonePropWrapped) {
+  function wrap(cloneDocWrapped, getAccessibleSheetsWrapped, cloneRulesWrapped, cloneRuleWrapped, cloneStyleRuleWrapped, cloneMediaRuleWrapped, clonePropWrapped, cloneFluidPropWrapped) {
     cloneDoc = cloneDocWrapped;
     getAccessibleSheets = getAccessibleSheetsWrapped;
     cloneRules = cloneRulesWrapped;
@@ -903,6 +920,7 @@ var FluidScale = (() => {
     cloneStyleRule = cloneStyleRuleWrapped;
     cloneMediaRule = cloneMediaRuleWrapped;
     cloneProp = clonePropWrapped;
+    cloneFluidProp = cloneFluidPropWrapped;
   }
 
   // test/parsing/serialization/docClonerController.ts
@@ -1025,6 +1043,12 @@ var FluidScale = (() => {
       }
     })
   };
+  function assertShorthandExpanded(prop, resultStyle, masterRule) {
+    const explicitProps = EXPLICIT_PROPS_FOR_SHORTHAND.get(prop);
+    for (const explicitProp of explicitProps) {
+      expect(resultStyle[explicitProp]).toBe(masterRule.style[explicitProp]);
+    }
+  }
   var clonePropAssertionChain = {
     "should clone the prop": (state, args, result) => withEventNames(
       args,
@@ -1044,12 +1068,7 @@ var FluidScale = (() => {
         if (events.fluidPropCloned) {
           expect(result.style[prop]).toBe(masterRule.style[prop]);
         } else if (events.shorthandExpanded) {
-          const explicitProps = EXPLICIT_PROPS_FOR_SHORTHAND.get(prop);
-          for (const explicitProp of explicitProps) {
-            expect(result.style[explicitProp]).toBe(
-              masterRule.style[explicitProp]
-            );
-          }
+          assertShorthandExpanded(prop, result.style, masterRule);
         } else if (events.specialPropCloned) {
           expect(result.specialProps[prop]).toBe(
             masterRule.specialProperties[prop]
@@ -1063,6 +1082,34 @@ var FluidScale = (() => {
       }
     )
   };
+  var cloneFluidPropAssertionChain = {
+    "should clone the fluid prop": (state, args, result) => withEventNames(
+      args,
+      [
+        "fluidPropCloned",
+        "shorthandExpanded",
+        "specialPropCloned",
+        "propOmitted"
+      ],
+      (events) => {
+        const [, prop, ctx] = args;
+        const masterRule = findStyleRule(
+          state.master.docClone,
+          state.styleRuleIndex - 1
+        );
+        if (events.fluidPropCloned) {
+          expect(result.style[prop]).toBe(masterRule.style[prop]);
+        } else if (events.shorthandExpanded) {
+          assertShorthandExpanded(prop, result.style, masterRule);
+        } else if (events.propOmitted) {
+          if (events.propOmitted.payload.why === "notFluidOrSpecial" || events.propOmitted.payload.why === "browserHandlesShorthands")
+            expect(result.style).toBe(ctx.style);
+        } else {
+          throw Error("Unexpected event route");
+        }
+      }
+    )
+  };
   var defaultAssertions = {
     cloneDoc: cloneDocAssertionChain,
     getAccessibleSheets: getAccessibleSheetsAssertionChain,
@@ -1070,7 +1117,8 @@ var FluidScale = (() => {
     cloneRule: cloneRuleAssertionChain,
     cloneStyleRule: cloneStyleRuleAssertionChain,
     cloneMediaRule: cloneMediaRuleAssertionChain,
-    cloneProp: clonePropAssertionChain
+    cloneProp: clonePropAssertionChain,
+    cloneFluidProp: cloneFluidPropAssertionChain
   };
   var DocClonerAssertionMaster = class extends dist_default {
     constructor() {
@@ -1112,6 +1160,7 @@ var FluidScale = (() => {
         )
       });
       this.cloneProp = this.wrapFn(cloneProp, "cloneProp");
+      this.cloneFluidProp = this.wrapFn(cloneFluidProp, "cloneFluidProp");
     }
     newState() {
       return {
@@ -1131,7 +1180,8 @@ var FluidScale = (() => {
       docClonerAssertionMaster.cloneRule,
       docClonerAssertionMaster.cloneStyleRule,
       docClonerAssertionMaster.cloneMediaRule,
-      docClonerAssertionMaster.cloneProp
+      docClonerAssertionMaster.cloneProp,
+      docClonerAssertionMaster.cloneFluidProp
     );
   }
 

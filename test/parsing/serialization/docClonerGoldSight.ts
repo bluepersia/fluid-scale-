@@ -7,6 +7,7 @@ import AssertionMaster, { AssertionChainForFunc } from "gold-sight";
 import { DocClonerMaster, GoldSightState } from "./index.types";
 import {
   cloneDoc,
+  cloneFluidProp,
   cloneMediaRule,
   cloneProp,
   cloneRule,
@@ -18,6 +19,7 @@ import { wrap } from "../../../src/parsing/serialization/docCloner";
 import * as controller from "./docClonerController";
 import { withEventNames } from "gold-sight";
 import { EXPLICIT_PROPS_FOR_SHORTHAND } from "../../../src/parsing/serialization/docClonerConsts";
+import { StyleRuleClone } from "../../../src/parsing/serialization/docClone";
 
 const cloneDocAssertionChain: AssertionChainForFunc<
   GoldSightState,
@@ -107,6 +109,17 @@ const cloneMediaRuleAssertionChain: AssertionChainForFunc<
     }),
 };
 
+function assertShorthandExpanded(
+  prop: string,
+  resultStyle: Record<string, string>,
+  masterRule: StyleRuleClone
+) {
+  const explicitProps = EXPLICIT_PROPS_FOR_SHORTHAND.get(prop)!;
+  for (const explicitProp of explicitProps) {
+    expect(resultStyle[explicitProp]).toBe(masterRule!.style[explicitProp]);
+  }
+}
+
 const clonePropAssertionChain: AssertionChainForFunc<
   GoldSightState,
   typeof cloneProp
@@ -130,12 +143,7 @@ const clonePropAssertionChain: AssertionChainForFunc<
         if (events.fluidPropCloned) {
           expect(result.style[prop]).toBe(masterRule!.style[prop]);
         } else if (events.shorthandExpanded) {
-          const explicitProps = EXPLICIT_PROPS_FOR_SHORTHAND.get(prop)!;
-          for (const explicitProp of explicitProps) {
-            expect(result.style[explicitProp]).toBe(
-              masterRule!.style[explicitProp]
-            );
-          }
+          assertShorthandExpanded(prop, result.style, masterRule!);
         } else if (events.specialPropCloned) {
           expect(result.specialProps[prop]).toBe(
             masterRule!.specialProperties[prop]
@@ -153,6 +161,43 @@ const clonePropAssertionChain: AssertionChainForFunc<
     ),
 };
 
+const cloneFluidPropAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneFluidProp
+> = {
+  "should clone the fluid prop": (state, args, result) =>
+    withEventNames(
+      args,
+      [
+        "fluidPropCloned",
+        "shorthandExpanded",
+        "specialPropCloned",
+        "propOmitted",
+      ],
+      (events) => {
+        const [, prop, ctx] = args;
+        const masterRule = controller.findStyleRule(
+          state.master!.docClone,
+          state.styleRuleIndex - 1
+        );
+
+        if (events.fluidPropCloned) {
+          expect(result.style[prop]).toBe(masterRule!.style[prop]);
+        } else if (events.shorthandExpanded) {
+          assertShorthandExpanded(prop, result.style, masterRule!);
+        } else if (events.propOmitted) {
+          if (
+            events.propOmitted.payload.why === "notFluidOrSpecial" ||
+            events.propOmitted.payload.why === "browserHandlesShorthands"
+          )
+            expect(result.style).toBe(ctx.style);
+        } else {
+          throw Error("Unexpected event route");
+        }
+      }
+    ),
+};
+
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   getAccessibleSheets: getAccessibleSheetsAssertionChain,
@@ -161,6 +206,7 @@ const defaultAssertions = {
   cloneStyleRule: cloneStyleRuleAssertionChain,
   cloneMediaRule: cloneMediaRuleAssertionChain,
   cloneProp: clonePropAssertionChain,
+  cloneFluidProp: cloneFluidPropAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -220,6 +266,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
       ),
   });
   cloneProp = this.wrapFn(cloneProp, "cloneProp");
+  cloneFluidProp = this.wrapFn(cloneFluidProp, "cloneFluidProp");
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -232,7 +279,8 @@ function wrapAll() {
     docClonerAssertionMaster.cloneRule,
     docClonerAssertionMaster.cloneStyleRule,
     docClonerAssertionMaster.cloneMediaRule,
-    docClonerAssertionMaster.cloneProp
+    docClonerAssertionMaster.cloneProp,
+    docClonerAssertionMaster.cloneFluidProp
   );
 }
 
