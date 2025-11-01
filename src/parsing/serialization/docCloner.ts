@@ -134,11 +134,13 @@ function normalizeSelector(selector: string): string {
 function wrap(
   cloneDocWrapped: typeof cloneDoc,
   getAccessibleSheetsWrapped: typeof getAccessibleSheets,
-  cloneRulesWrapped: typeof cloneRules
+  cloneRulesWrapped: typeof cloneRules,
+  cloneRuleWrapped: typeof cloneRule
 ) {
   cloneDoc = cloneDocWrapped;
   getAccessibleSheets = getAccessibleSheetsWrapped;
   cloneRules = cloneRulesWrapped;
+  cloneRule = cloneRuleWrapped;
 }
 
 export { cloneDoc, cloneRule, cloneRules, getAccessibleSheets, wrap };

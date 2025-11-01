@@ -28,6 +28,7 @@ var FluidScale = (() => {
   // bundle/src/bundle.ts
   var bundle_exports = {};
   __export(bundle_exports, {
+    EventBus: () => EventBus,
     cloneDoc: () => cloneDoc,
     docClonerAssertionMaster: () => docClonerAssertionMaster,
     getQueue: () => getQueue
@@ -74,6 +75,56 @@ var FluidScale = (() => {
   }
 
   // ../GoldSight/dist/utils/eventBus.js
+  var EventBus = class {
+    constructor(queueIndex = 0, events = {}) {
+      this.isEventBus = true;
+      this.queueIndex = 0;
+      this.events = {};
+      this.uninitialized = [];
+      this.emitOnceEvents = {};
+      this.queueIndex = queueIndex;
+      this.events = events;
+    }
+    setQueueIndex(queueIndex) {
+      this.queueIndex = queueIndex;
+    }
+    getQueueIndex() {
+      return this.queueIndex;
+    }
+    emit(name, uuid, payload) {
+      const uuidValue = typeof uuid === "string" ? uuid : uuid.eventUUID;
+      if (!payload)
+        payload = {};
+      const newEvent = {
+        name,
+        payload,
+        uuid: uuidValue
+      };
+      let events = this.events[name];
+      if (!events) {
+        events = this.events[name] = [];
+      }
+      events.push(newEvent);
+      this.uninitialized.push(newEvent);
+    }
+    emitOnce(name, uuid, payload) {
+      const uuidValue = typeof uuid === "string" ? uuid : uuid.eventUUID;
+      let emitOnceEvents = this.emitOnceEvents[name];
+      if (!emitOnceEvents)
+        this.emitOnceEvents[name] = emitOnceEvents = [];
+      if (emitOnceEvents.find((event) => event.uuid === uuidValue))
+        return;
+      emitOnceEvents.push({
+        name,
+        payload,
+        uuid: uuidValue
+      });
+      this.emit(name, uuid, payload);
+    }
+    getEventsForUUID(uuid) {
+      return Object.values(this.events).flat().filter((event) => event.uuid === uuid);
+    }
+  };
   function getEventBus(args) {
     for (const arg of args) {
       if (arg?.isEventBus)
@@ -784,10 +835,11 @@ var FluidScale = (() => {
   function normalizeSelector(selector) {
     return selector.replace(/\*::(before|after)\b/g, "::$1").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
   }
-  function wrap(cloneDocWrapped, getAccessibleSheetsWrapped, cloneRulesWrapped) {
+  function wrap(cloneDocWrapped, getAccessibleSheetsWrapped, cloneRulesWrapped, cloneRuleWrapped) {
     cloneDoc = cloneDocWrapped;
     getAccessibleSheets = getAccessibleSheetsWrapped;
     cloneRules = cloneRulesWrapped;
+    cloneRule = cloneRuleWrapped;
   }
 
   // test/parsing/serialization/docClonerController.ts
@@ -865,12 +917,19 @@ var FluidScale = (() => {
     constructor() {
       super(defaultAssertions, "cloneDoc");
       this.cloneDoc = this.wrapTopFn(cloneDoc, "cloneDoc");
+      this.getAccessibleSheets = this.wrapFn(getAccessibleSheets, "getAccessibleSheets");
       this.cloneRules = this.wrapFn(cloneRules, "cloneRules", {
         post: (state) => {
           state.rulesIndex++;
         }
       });
-      this.getAccessibleSheets = this.wrapFn(getAccessibleSheets, "getAccessibleSheets");
+      this.cloneRule = this.wrapFn(cloneRule, "cloneRule", {
+        post: (state, args) => withEventNames(args, ["ruleCloned", "ruleOmitted"], (events) => {
+          if (events.ruleCloned) {
+            state.ruleIndex++;
+          }
+        })
+      });
     }
     newState() {
       return {
@@ -884,7 +943,8 @@ var FluidScale = (() => {
     wrap(
       docClonerAssertionMaster.cloneDoc,
       docClonerAssertionMaster.getAccessibleSheets,
-      docClonerAssertionMaster.cloneRules
+      docClonerAssertionMaster.cloneRules,
+      docClonerAssertionMaster.cloneRule
     );
   }
 

@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import { initPlaywrightPages, teardownPlaywrightPages } from "../../setup";
 import { docClonerCollection } from "./docClonerCollection";
 import { PlaywrightPage } from "../../index.types";
-import { AssertionBlueprint } from "gold-sight";
+import { AssertionBlueprint, EventBus } from "gold-sight";
 import { docClonerAssertionMaster } from "./docClonerGoldSight";
 import { JSDOMDocs } from "../../setup";
 import { cloneDoc } from "../../../src/parsing/serialization/docCloner";
@@ -26,7 +26,11 @@ describe("docCloner", () => {
       const queue: [number, AssertionBlueprint][] = await page.evaluate(
         (master) => {
           (window as any).docClonerAssertionMaster.master = master;
-          (window as any).cloneDoc(document, { isBrowser: true });
+          (window as any).cloneDoc(document, {
+            isBrowser: true,
+            event: new (window as any).EventBus(),
+            eventUUID: "",
+          });
 
           const queue = (window as any).docClonerAssertionMaster.getQueue();
 
@@ -47,7 +51,11 @@ describe("docCloner", () => {
       const { doc } = JSDOMDocs[index];
 
       docClonerAssertionMaster.master = master;
-      cloneDoc(doc, makeDefaultGlobal());
+      cloneDoc(doc, {
+        ...makeDefaultGlobal(),
+        event: new EventBus(),
+        eventUUID: "",
+      });
       docClonerAssertionMaster.assertQueue();
     }
   );

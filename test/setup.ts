@@ -108,6 +108,9 @@ async function onLoadBrowserPage(page: Page, blueprint?: PlaywrightBlueprint) {
     // prettier-ignore
     // @ts-expect-error global from IIFE bundle
     window.docClonerAssertionMaster = window.FluidScale.docClonerAssertionMaster;
+
+    // @ts-expect-error global from IIFE bundle
+    window.EventBus = window.FluidScale.EventBus;
   });
 }
 

@@ -88,12 +88,20 @@ class DocClonerAssertionMaster extends AssertionMaster<
   }
 
   cloneDoc = this.wrapTopFn(cloneDoc, "cloneDoc");
+  getAccessibleSheets = this.wrapFn(getAccessibleSheets, "getAccessibleSheets");
   cloneRules = this.wrapFn(cloneRules, "cloneRules", {
     post: (state) => {
       state.rulesIndex++;
     },
   });
-  getAccessibleSheets = this.wrapFn(getAccessibleSheets, "getAccessibleSheets");
+  cloneRule = this.wrapFn(cloneRule, "cloneRule", {
+    post: (state, args) =>
+      withEventNames(args, ["ruleCloned", "ruleOmitted"], (events) => {
+        if (events.ruleCloned) {
+          state.ruleIndex++;
+        }
+      }),
+  });
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -102,7 +110,8 @@ function wrapAll() {
   wrap(
     docClonerAssertionMaster.cloneDoc,
     docClonerAssertionMaster.getAccessibleSheets,
-    docClonerAssertionMaster.cloneRules
+    docClonerAssertionMaster.cloneRules,
+    docClonerAssertionMaster.cloneRule
   );
 }
 
