@@ -192,4 +192,29 @@ const SPECIAL_PROPERTIES = new Set([
   "--span-end",
 ]);
 
-export { FLUID_PROPERTY_NAMES, SHORTHAND_PROPERTIES, SPECIAL_PROPERTIES };
+const EXPLICIT_PROPS_FOR_SHORTHAND = new Map<string, string[]>([
+  [
+    "padding",
+    ["padding-top", "padding-right", "padding-bottom", "padding-left"],
+  ],
+  ["margin", ["margin-top", "margin-right", "margin-bottom", "margin-left"]],
+  ["border", ["border-top", "border-right", "border-bottom", "border-left"]],
+  [
+    "border-radius",
+    [
+      "border-top-left-radius",
+      "border-top-right-radius",
+      "border-bottom-right-radius",
+      "border-bottom-left-radius",
+    ],
+  ],
+  ["gap", ["column-gap", "row-gap"]],
+  ["background-position", ["background-position-x", "background-position-y"]],
+]);
+
+export {
+  FLUID_PROPERTY_NAMES,
+  SHORTHAND_PROPERTIES,
+  SPECIAL_PROPERTIES,
+  EXPLICIT_PROPS_FOR_SHORTHAND,
+};

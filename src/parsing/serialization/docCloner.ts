@@ -7,7 +7,11 @@ import {
   SheetClone,
   StyleRuleClone,
 } from "./docClone";
-import { CloneDocContext } from "./docCloner.types";
+import {
+  CloneDocContext,
+  ClonePropContext,
+  ClonePropsState,
+} from "./docCloner.types";
 import {
   FLUID_PROPERTY_NAMES,
   SHORTHAND_PROPERTIES,
@@ -73,40 +77,21 @@ let cloneStyleRule = (
   styleRule: CSSStyleRule,
   ctx: CloneDocContext
 ): StyleRuleClone | null => {
-  const { isBrowser, event } = ctx;
+  const { event } = ctx;
   const styleRuleClone = new StyleRuleClone(ctx);
   styleRuleClone.selector = normalizeSelector(styleRule.selectorText);
 
-  const style: Record<string, string> = {};
-  const specialProps: Record<string, string> = {};
+  let propsState: ClonePropsState = {
+    style: {},
+    specialProps: {},
+  };
 
   for (let i = 0; i < styleRule.style.length; i++) {
     const prop = styleRule.style[i];
-
-    if (FLUID_PROPERTY_NAMES.has(prop)) {
-      const shorthandMap = SHORTHAND_PROPERTIES[prop];
-      if (shorthandMap) {
-        if (isBrowser) continue;
-
-        const values = splitBySpaces(styleRule.style.getPropertyValue(prop));
-        const valuesCount = values.length;
-        const innerShorthandMap = shorthandMap.get(valuesCount)!;
-        for (const [index, value] of values.entries()) {
-          const valueMap = innerShorthandMap.get(index)!;
-          for (const valueProp of valueMap) {
-            style[valueProp] = normalizeZero(value);
-          }
-        }
-        continue;
-      }
-      style[prop] = normalizeZero(styleRule.style.getPropertyValue(prop));
-    } else if (SPECIAL_PROPERTIES.has(prop)) {
-      specialProps[prop] = styleRule.style.getPropertyValue(prop);
-    }
+    propsState = cloneProp(styleRule, prop, { ...ctx, propsState });
   }
 
-  styleRuleClone.style = style;
-  styleRuleClone.specialProperties = specialProps;
+  const { style, specialProps } = propsState;
 
   if (Object.keys(style).length <= 0 && Object.keys(specialProps).length <= 0) {
     event?.emit("styleRuleOmitted", ctx, {
@@ -115,8 +100,56 @@ let cloneStyleRule = (
     return null;
   }
 
+  styleRuleClone.style = style;
+  styleRuleClone.specialProperties = specialProps;
+
   event?.emit("styleRuleCloned", ctx, { result: styleRuleClone });
   return styleRuleClone;
+};
+
+let cloneProp = (
+  styleRule: CSSStyleRule,
+  prop: string,
+  ctx: ClonePropContext
+): ClonePropsState => {
+  const { isBrowser, event } = ctx;
+  let { propsState } = ctx;
+  let { style, specialProps } = propsState;
+  if (FLUID_PROPERTY_NAMES.has(prop)) {
+    const shorthandMap = SHORTHAND_PROPERTIES[prop];
+    if (shorthandMap) {
+      if (isBrowser) {
+        event?.emit("propOmitted", ctx, {
+          why: "browserHandlesShorthands",
+        });
+        return propsState;
+      }
+
+      style = { ...style };
+      const values = splitBySpaces(styleRule.style.getPropertyValue(prop));
+      const valuesCount = values.length;
+      const innerShorthandMap = shorthandMap.get(valuesCount)!;
+      for (const [index, value] of values.entries()) {
+        const valueMap = innerShorthandMap.get(index)!;
+        for (const valueProp of valueMap) {
+          style[valueProp] = normalizeZero(value);
+        }
+      }
+      event?.emit("shorthandExpanded", ctx, { style });
+      return { style, specialProps };
+    }
+    style = { ...style };
+    style[prop] = normalizeZero(styleRule.style.getPropertyValue(prop));
+    event?.emit("fluidPropCloned", ctx, { prop, value: style[prop] });
+    return { style, specialProps };
+  } else if (SPECIAL_PROPERTIES.has(prop)) {
+    specialProps = { ...specialProps };
+    specialProps[prop] = styleRule.style.getPropertyValue(prop);
+    event?.emit("specialPropCloned", ctx, { prop, value: specialProps[prop] });
+    return { style, specialProps };
+  }
+  event?.emit("propOmitted", ctx, { prop, why: "notFluidOrSpecial" });
+  return propsState;
 };
 
 let cloneMediaRule = (
@@ -162,7 +195,8 @@ function wrap(
   cloneRulesWrapped: typeof cloneRules,
   cloneRuleWrapped: typeof cloneRule,
   cloneStyleRuleWrapped: typeof cloneStyleRule,
-  cloneMediaRuleWrapped: typeof cloneMediaRule
+  cloneMediaRuleWrapped: typeof cloneMediaRule,
+  clonePropWrapped: typeof cloneProp
 ) {
   cloneDoc = cloneDocWrapped;
   getAccessibleSheets = getAccessibleSheetsWrapped;
@@ -170,6 +204,7 @@ function wrap(
   cloneRule = cloneRuleWrapped;
   cloneStyleRule = cloneStyleRuleWrapped;
   cloneMediaRule = cloneMediaRuleWrapped;
+  cloneProp = clonePropWrapped;
 }
 
 export {
@@ -180,4 +215,5 @@ export {
   wrap,
   cloneStyleRule,
   cloneMediaRule,
+  cloneProp,
 };

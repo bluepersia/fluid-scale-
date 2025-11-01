@@ -8,6 +8,7 @@ import { DocClonerMaster, GoldSightState } from "./index.types";
 import {
   cloneDoc,
   cloneMediaRule,
+  cloneProp,
   cloneRule,
   cloneRules,
   cloneStyleRule,
@@ -16,6 +17,7 @@ import {
 import { wrap } from "../../../src/parsing/serialization/docCloner";
 import * as controller from "./docClonerController";
 import { withEventNames } from "gold-sight";
+import { EXPLICIT_PROPS_FOR_SHORTHAND } from "../../../src/parsing/serialization/docClonerConsts";
 
 const cloneDocAssertionChain: AssertionChainForFunc<
   GoldSightState,
@@ -63,6 +65,8 @@ const cloneRuleAssertionChain: AssertionChainForFunc<
         ) {
           expect(result).toBeNull();
         }
+      } else {
+        throw Error("Unexpected event route");
       }
     }),
 };
@@ -79,6 +83,8 @@ const cloneStyleRuleAssertionChain: AssertionChainForFunc<
         );
       } else if (events.styleRuleOmitted) {
         expect(result).toBeNull();
+      } else {
+        throw Error("Unexpected event route");
       }
     }),
 };
@@ -95,8 +101,56 @@ const cloneMediaRuleAssertionChain: AssertionChainForFunc<
         );
       } else if (events.mediaRuleOmitted) {
         expect(result).toBeNull();
+      } else {
+        throw Error("Unexpected event route");
       }
     }),
+};
+
+const clonePropAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneProp
+> = {
+  "should clone the prop": (state, args, result) =>
+    withEventNames(
+      args,
+      [
+        "fluidPropCloned",
+        "shorthandExpanded",
+        "specialPropCloned",
+        "propOmitted",
+      ],
+      (events) => {
+        const [, prop, ctx] = args;
+        const { propsState } = ctx;
+        const masterRule = controller.findStyleRule(
+          state.master!.docClone,
+          state.styleRuleIndex - 1
+        );
+        if (events.fluidPropCloned) {
+          expect(result.style[prop]).toBe(masterRule!.style[prop]);
+        } else if (events.shorthandExpanded) {
+          const explicitProps = EXPLICIT_PROPS_FOR_SHORTHAND.get(prop)!;
+          for (const explicitProp of explicitProps) {
+            expect(result.style[explicitProp]).toBe(
+              masterRule!.style[explicitProp]
+            );
+          }
+        } else if (events.specialPropCloned) {
+          expect(result.specialProps[prop]).toBe(
+            masterRule!.specialProperties[prop]
+          );
+        } else if (events.propOmitted) {
+          if (
+            events.propOmitted.payload.why === "notFluidOrSpecial" ||
+            events.propOmitted.payload.why === "browserHandlesShorthands"
+          )
+            expect(result).toBe(propsState);
+        } else {
+          throw Error("Unexpected event route");
+        }
+      }
+    ),
 };
 
 const defaultAssertions = {
@@ -106,6 +160,7 @@ const defaultAssertions = {
   cloneRule: cloneRuleAssertionChain,
   cloneStyleRule: cloneStyleRuleAssertionChain,
   cloneMediaRule: cloneMediaRuleAssertionChain,
+  cloneProp: clonePropAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -164,6 +219,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
         }
       ),
   });
+  cloneProp = this.wrapFn(cloneProp, "cloneProp");
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -175,7 +231,8 @@ function wrapAll() {
     docClonerAssertionMaster.cloneRules,
     docClonerAssertionMaster.cloneRule,
     docClonerAssertionMaster.cloneStyleRule,
-    docClonerAssertionMaster.cloneMediaRule
+    docClonerAssertionMaster.cloneMediaRule,
+    docClonerAssertionMaster.cloneProp
   );
 }
 
