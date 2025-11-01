@@ -9,6 +9,7 @@ import {
   cloneDoc,
   cloneRule,
   cloneRules,
+  cloneStyleRule,
   getAccessibleSheets,
 } from "../../../src/parsing/serialization/docCloner";
 import { wrap } from "../../../src/parsing/serialization/docCloner";
@@ -65,11 +66,28 @@ const cloneRuleAssertionChain: AssertionChainForFunc<
     }),
 };
 
+const cloneStyleRuleAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneStyleRule
+> = {
+  "should clone the style rule": (state, args, result) =>
+    withEventNames(args, ["styleRuleCloned", "styleRuleOmitted"], (events) => {
+      if (events.styleRuleCloned) {
+        expect(result).toEqual(
+          controller.findStyleRule(state.master!.docClone, state.styleRuleIndex)
+        );
+      } else if (events.styleRuleOmitted) {
+        expect(result).toBeNull();
+      }
+    }),
+};
+
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   getAccessibleSheets: getAccessibleSheetsAssertionChain,
   cloneRules: cloneRulesAssertionChain,
   cloneRule: cloneRuleAssertionChain,
+  cloneStyleRule: cloneStyleRuleAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -84,6 +102,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
     return {
       rulesIndex: 0,
       ruleIndex: 0,
+      styleRuleIndex: 0,
     };
   }
 
@@ -102,6 +121,18 @@ class DocClonerAssertionMaster extends AssertionMaster<
         }
       }),
   });
+  cloneStyleRule = this.wrapFn(cloneStyleRule, "cloneStyleRule", {
+    post: (state, args) =>
+      withEventNames(
+        args,
+        ["styleRuleCloned", "styleRuleOmitted"],
+        (events) => {
+          if (events.styleRuleCloned) {
+            state.styleRuleIndex++;
+          }
+        }
+      ),
+  });
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -111,7 +142,8 @@ function wrapAll() {
     docClonerAssertionMaster.cloneDoc,
     docClonerAssertionMaster.getAccessibleSheets,
     docClonerAssertionMaster.cloneRules,
-    docClonerAssertionMaster.cloneRule
+    docClonerAssertionMaster.cloneRule,
+    docClonerAssertionMaster.cloneStyleRule
   );
 }
 

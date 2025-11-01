@@ -9,6 +9,7 @@ type GoldSightState = {
   master?: DocClonerMaster;
   rulesIndex: number;
   ruleIndex: number;
+  styleRuleIndex: number;
 };
 
 export { GoldSightState, DocClonerMaster };
