@@ -185,11 +185,10 @@ var FluidScale = (() => {
                 }
                 errors.push({ err, name, id });
               }
-              if (didRun) {
-                let count = verifiedAssertions.get(key) || 0;
-                count++;
-                verifiedAssertions.set(key, count);
-              }
+              didRun = didRun;
+              let count = verifiedAssertions.get(key) || 0;
+              count++;
+              verifiedAssertions.set(key, count);
             }
           }
         }
@@ -649,14 +648,7 @@ var FluidScale = (() => {
   // src/parsing/serialization/docCloner.ts
   var cloneDoc = (doc, ctx) => {
     const docClone = new DocClone(ctx);
-    const accessibleSheets = Array.from(doc.styleSheets).filter((sheet) => {
-      try {
-        const rules = sheet.cssRules;
-        return rules ? true : false;
-      } catch (error) {
-        return false;
-      }
-    });
+    const accessibleSheets = getAccessibleSheets(doc);
     for (const sheet of accessibleSheets) {
       const sheetClone = new SheetClone(ctx);
       sheetClone.rules = cloneRules(sheet.cssRules, ctx);
@@ -718,6 +710,16 @@ var FluidScale = (() => {
     }
     return result;
   }
+  var getAccessibleSheets = (doc) => {
+    return Array.from(doc.styleSheets).filter((sheet) => {
+      try {
+        const rules = sheet.cssRules;
+        return rules ? true : false;
+      } catch (error) {
+        return false;
+      }
+    });
+  };
   function normalizeZero(input) {
     return input.replace(
       /(?<![\d.])0+(?:\.0+)?(?![\d.])(?!(px|em|rem|%|vh|vw|vmin|vmax|ch|ex|cm|mm|in|pt|pc)\b)/g,
@@ -727,8 +729,9 @@ var FluidScale = (() => {
   function normalizeSelector(selector) {
     return selector.replace(/\*::(before|after)\b/g, "::$1").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
   }
-  function wrap(cloneDocWrapped) {
+  function wrap(cloneDocWrapped, getAccessibleSheetsWrapped) {
     cloneDoc = cloneDocWrapped;
+    getAccessibleSheets = getAccessibleSheetsWrapped;
   }
 
   // test/parsing/serialization/docClonerGoldSight.ts
@@ -741,13 +744,20 @@ var FluidScale = (() => {
       expect(result).toEqual(state.master.docClone);
     }
   };
+  var getAccessibleSheetsAssertionChain = {
+    "should get the accessible sheets": (state, args, result) => {
+      expect(result.length).toBe(state.master.docClone.sheets.length);
+    }
+  };
   var defaultAssertions = {
-    cloneDoc: cloneDocAssertionChain
+    cloneDoc: cloneDocAssertionChain,
+    getAccessibleSheets: getAccessibleSheetsAssertionChain
   };
   var DocClonerAssertionMaster = class extends dist_default {
     constructor() {
       super(defaultAssertions, "cloneDoc");
       this.cloneDoc = this.wrapTopFn(cloneDoc, "cloneDoc");
+      this.getAccessibleSheets = this.wrapFn(getAccessibleSheets, "getAccessibleSheets");
     }
     newState() {
       return {};
@@ -755,7 +765,10 @@ var FluidScale = (() => {
   };
   var docClonerAssertionMaster = new DocClonerAssertionMaster();
   function wrapAll() {
-    wrap(docClonerAssertionMaster.cloneDoc);
+    wrap(
+      docClonerAssertionMaster.cloneDoc,
+      docClonerAssertionMaster.getAccessibleSheets
+    );
   }
 
   // bundle/src/bundle.ts

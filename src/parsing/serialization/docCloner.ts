@@ -17,14 +17,7 @@ import {
 let cloneDoc = (doc: Document, ctx: CloneDocContext): DocClone => {
   const docClone = new DocClone(ctx);
 
-  const accessibleSheets = Array.from(doc.styleSheets).filter((sheet) => {
-    try {
-      const rules = sheet.cssRules;
-      return rules ? true : false;
-    } catch (error) {
-      return false;
-    }
-  });
+  const accessibleSheets = getAccessibleSheets(doc);
 
   for (const sheet of accessibleSheets) {
     const sheetClone = new SheetClone(ctx);
@@ -100,6 +93,17 @@ function cloneRules(rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] {
   return result;
 }
 
+let getAccessibleSheets = (doc: Document): CSSStyleSheet[] => {
+  return Array.from(doc.styleSheets).filter((sheet) => {
+    try {
+      const rules = sheet.cssRules;
+      return rules ? true : false;
+    } catch (error) {
+      return false;
+    }
+  });
+};
+
 function normalizeZero(input: string): string {
   return input.replace(
     /(?<![\d.])0+(?:\.0+)?(?![\d.])(?!(px|em|rem|%|vh|vw|vmin|vmax|ch|ex|cm|mm|in|pt|pc)\b)/g,
@@ -115,8 +119,12 @@ function normalizeSelector(selector: string): string {
     .trim();
 }
 
-function wrap(cloneDocWrapped: typeof cloneDoc) {
+function wrap(
+  cloneDocWrapped: typeof cloneDoc,
+  getAccessibleSheetsWrapped: typeof getAccessibleSheets
+) {
   cloneDoc = cloneDocWrapped;
+  getAccessibleSheets = getAccessibleSheetsWrapped;
 }
 
-export { cloneDoc, cloneRules, wrap };
+export { cloneDoc, cloneRules, getAccessibleSheets, wrap };

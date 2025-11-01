@@ -5,7 +5,10 @@ if (process.env.NODE_ENV === "test") {
 
 import AssertionMaster, { AssertionChainForFunc } from "gold-sight";
 import { DocClonerMaster, GoldSightState } from "./index.types";
-import { cloneDoc } from "../../../src/parsing/serialization/docCloner";
+import {
+  cloneDoc,
+  getAccessibleSheets,
+} from "../../../src/parsing/serialization/docCloner";
 import { wrap } from "../../../src/parsing/serialization/docCloner";
 
 const cloneDocAssertionChain: AssertionChainForFunc<
@@ -17,8 +20,18 @@ const cloneDocAssertionChain: AssertionChainForFunc<
   },
 };
 
+const getAccessibleSheetsAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof getAccessibleSheets
+> = {
+  "should get the accessible sheets": (state, args, result) => {
+    expect(result.length).toBe(state.master!.docClone.sheets.length);
+  },
+};
+
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
+  getAccessibleSheets: getAccessibleSheetsAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -34,12 +47,17 @@ class DocClonerAssertionMaster extends AssertionMaster<
   }
 
   cloneDoc = this.wrapTopFn(cloneDoc, "cloneDoc");
+
+  getAccessibleSheets = this.wrapFn(getAccessibleSheets, "getAccessibleSheets");
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
 
 function wrapAll() {
-  wrap(docClonerAssertionMaster.cloneDoc);
+  wrap(
+    docClonerAssertionMaster.cloneDoc,
+    docClonerAssertionMaster.getAccessibleSheets
+  );
 }
 
 export { wrapAll, docClonerAssertionMaster };
