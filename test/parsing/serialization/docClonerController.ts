@@ -56,4 +56,16 @@ function findStyleRule(doc: DocClone, index: number): StyleRuleClone | null {
   return null;
 }
 
-export { findRule, findRules, findStyleRule };
+function findMediaRule(doc: DocClone, index: number): MediaRuleClone | null {
+  const counter = new AbsCounter(index);
+  for (const sheet of doc.sheets) {
+    for (const rule of sheet.rules) {
+      if (rule.type === MEDIA_RULE_TYPE) {
+        if (counter.match()) return rule as MediaRuleClone;
+      }
+    }
+  }
+  return null;
+}
+
+export { findRule, findRules, findStyleRule, findMediaRule };

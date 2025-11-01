@@ -7,6 +7,7 @@ import AssertionMaster, { AssertionChainForFunc } from "gold-sight";
 import { DocClonerMaster, GoldSightState } from "./index.types";
 import {
   cloneDoc,
+  cloneMediaRule,
   cloneRule,
   cloneRules,
   cloneStyleRule,
@@ -82,12 +83,29 @@ const cloneStyleRuleAssertionChain: AssertionChainForFunc<
     }),
 };
 
+const cloneMediaRuleAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneMediaRule
+> = {
+  "should clone the media rule": (state, args, result) =>
+    withEventNames(args, ["mediaRuleCloned", "mediaRuleOmitted"], (events) => {
+      if (events.mediaRuleCloned) {
+        expect(result).toEqual(
+          controller.findMediaRule(state.master!.docClone, state.mediaRuleIndex)
+        );
+      } else if (events.mediaRuleOmitted) {
+        expect(result).toBeNull();
+      }
+    }),
+};
+
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   getAccessibleSheets: getAccessibleSheetsAssertionChain,
   cloneRules: cloneRulesAssertionChain,
   cloneRule: cloneRuleAssertionChain,
   cloneStyleRule: cloneStyleRuleAssertionChain,
+  cloneMediaRule: cloneMediaRuleAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -103,6 +121,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
       rulesIndex: 0,
       ruleIndex: 0,
       styleRuleIndex: 0,
+      mediaRuleIndex: 0,
     };
   }
 
@@ -133,6 +152,18 @@ class DocClonerAssertionMaster extends AssertionMaster<
         }
       ),
   });
+  cloneMediaRule = this.wrapFn(cloneMediaRule, "cloneMediaRule", {
+    post: (state, args) =>
+      withEventNames(
+        args,
+        ["mediaRuleCloned", "mediaRuleOmitted"],
+        (events) => {
+          if (events.mediaRuleCloned) {
+            state.mediaRuleIndex++;
+          }
+        }
+      ),
+  });
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -143,7 +174,8 @@ function wrapAll() {
     docClonerAssertionMaster.getAccessibleSheets,
     docClonerAssertionMaster.cloneRules,
     docClonerAssertionMaster.cloneRule,
-    docClonerAssertionMaster.cloneStyleRule
+    docClonerAssertionMaster.cloneStyleRule,
+    docClonerAssertionMaster.cloneMediaRule
   );
 }
 

@@ -27,6 +27,16 @@ let cloneDoc = (doc: Document, ctx: CloneDocContext): DocClone => {
 
   return docClone;
 };
+let getAccessibleSheets = (doc: Document): CSSStyleSheet[] => {
+  return Array.from(doc.styleSheets).filter((sheet) => {
+    try {
+      const rules = sheet.cssRules;
+      return rules ? true : false;
+    } catch (error) {
+      return false;
+    }
+  });
+};
 
 let cloneRules = (rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] => {
   const result: RuleClone[] = Array.from(rules)
@@ -45,17 +55,7 @@ let cloneRule = (rule: CSSRule, ctx: CloneDocContext): RuleClone | null => {
     result = cloneStyleRule(rule as CSSStyleRule, ctx);
   } else if (rule.type === MEDIA_RULE_TYPE) {
     type = MEDIA_RULE_TYPE;
-    const mediaRule = rule as CSSMediaRule;
-    const mediaRuleClone = new MediaRuleClone(ctx);
-
-    const match = mediaRule.media.mediaText.match(/\(min-width:\s*(\d+)px\)/);
-    if (match) {
-      mediaRuleClone.minWidth = Number(match[1]);
-      mediaRuleClone.rules = cloneRules(mediaRule.cssRules, ctx).filter(
-        (rule) => rule.type === STYLE_RULE_TYPE
-      ) as StyleRuleClone[];
-    }
-    result = mediaRuleClone;
+    result = cloneMediaRule(rule as CSSMediaRule, ctx);
   }
 
   if (event) {
@@ -119,15 +119,26 @@ let cloneStyleRule = (
   return styleRuleClone;
 };
 
-let getAccessibleSheets = (doc: Document): CSSStyleSheet[] => {
-  return Array.from(doc.styleSheets).filter((sheet) => {
-    try {
-      const rules = sheet.cssRules;
-      return rules ? true : false;
-    } catch (error) {
-      return false;
-    }
+let cloneMediaRule = (
+  mediaRule: CSSMediaRule,
+  ctx: CloneDocContext
+): MediaRuleClone | null => {
+  const { event } = ctx;
+  const mediaRuleClone = new MediaRuleClone(ctx);
+
+  const match = mediaRule.media.mediaText.match(/\(min-width:\s*(\d+)px\)/);
+  if (match) {
+    mediaRuleClone.minWidth = Number(match[1]);
+    mediaRuleClone.rules = cloneRules(mediaRule.cssRules, ctx).filter(
+      (rule) => rule.type === STYLE_RULE_TYPE
+    ) as StyleRuleClone[];
+    event?.emit("mediaRuleCloned", ctx, { result: mediaRuleClone });
+    return mediaRuleClone;
+  }
+  event?.emit("mediaRuleOmitted", ctx, {
+    why: "noMinWidth",
   });
+  return null;
 };
 
 function normalizeZero(input: string): string {
@@ -150,13 +161,15 @@ function wrap(
   getAccessibleSheetsWrapped: typeof getAccessibleSheets,
   cloneRulesWrapped: typeof cloneRules,
   cloneRuleWrapped: typeof cloneRule,
-  cloneStyleRuleWrapped: typeof cloneStyleRule
+  cloneStyleRuleWrapped: typeof cloneStyleRule,
+  cloneMediaRuleWrapped: typeof cloneMediaRule
 ) {
   cloneDoc = cloneDocWrapped;
   getAccessibleSheets = getAccessibleSheetsWrapped;
   cloneRules = cloneRulesWrapped;
   cloneRule = cloneRuleWrapped;
   cloneStyleRule = cloneStyleRuleWrapped;
+  cloneMediaRule = cloneMediaRuleWrapped;
 }
 
 export {
@@ -166,4 +179,5 @@ export {
   getAccessibleSheets,
   wrap,
   cloneStyleRule,
+  cloneMediaRule,
 };
