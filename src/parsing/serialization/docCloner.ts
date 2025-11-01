@@ -28,70 +28,82 @@ let cloneDoc = (doc: Document, ctx: CloneDocContext): DocClone => {
   return docClone;
 };
 
-function cloneRules(rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] {
-  const { isBrowser } = ctx;
-  const result: RuleClone[] = [];
-  for (const rule of Array.from(rules)) {
-    if (rule.type === STYLE_RULE_TYPE) {
-      const styleRule = rule as CSSStyleRule;
-      const styleRuleClone = new StyleRuleClone(ctx);
-      styleRuleClone.selector = normalizeSelector(styleRule.selectorText);
+let cloneRules = (rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] => {
+  const result: RuleClone[] = Array.from(rules)
+    .map((rule) => cloneRule(rule, ctx))
+    .filter((rule) => rule !== null);
 
-      const style: Record<string, string> = {};
-      const specialProps: Record<string, string> = {};
+  return result;
+};
 
-      for (let i = 0; i < styleRule.style.length; i++) {
-        const prop = styleRule.style[i];
+let cloneRule = (rule: CSSRule, ctx: CloneDocContext): RuleClone | null => {
+  const { isBrowser, event } = ctx;
+  let result: RuleClone | null = null;
+  let type: number | null = null;
+  if (rule.type === STYLE_RULE_TYPE) {
+    type = STYLE_RULE_TYPE;
+    const styleRule = rule as CSSStyleRule;
+    const styleRuleClone = new StyleRuleClone(ctx);
+    styleRuleClone.selector = normalizeSelector(styleRule.selectorText);
 
-        if (FLUID_PROPERTY_NAMES.has(prop)) {
-          const shorthandMap = SHORTHAND_PROPERTIES[prop];
-          if (shorthandMap) {
-            if (isBrowser) continue;
+    const style: Record<string, string> = {};
+    const specialProps: Record<string, string> = {};
 
-            const values = splitBySpaces(
-              styleRule.style.getPropertyValue(prop)
-            );
-            const valuesCount = values.length;
-            const innerShorthandMap = shorthandMap.get(valuesCount)!;
-            for (const [index, value] of values.entries()) {
-              const valueMap = innerShorthandMap.get(index)!;
-              for (const valueProp of valueMap) {
-                style[valueProp] = normalizeZero(value);
-              }
+    for (let i = 0; i < styleRule.style.length; i++) {
+      const prop = styleRule.style[i];
+
+      if (FLUID_PROPERTY_NAMES.has(prop)) {
+        const shorthandMap = SHORTHAND_PROPERTIES[prop];
+        if (shorthandMap) {
+          if (isBrowser) continue;
+
+          const values = splitBySpaces(styleRule.style.getPropertyValue(prop));
+          const valuesCount = values.length;
+          const innerShorthandMap = shorthandMap.get(valuesCount)!;
+          for (const [index, value] of values.entries()) {
+            const valueMap = innerShorthandMap.get(index)!;
+            for (const valueProp of valueMap) {
+              style[valueProp] = normalizeZero(value);
             }
-            continue;
           }
-          style[prop] = normalizeZero(styleRule.style.getPropertyValue(prop));
-        } else if (SPECIAL_PROPERTIES.has(prop)) {
-          specialProps[prop] = styleRule.style.getPropertyValue(prop);
+          continue;
         }
+        style[prop] = normalizeZero(styleRule.style.getPropertyValue(prop));
+      } else if (SPECIAL_PROPERTIES.has(prop)) {
+        specialProps[prop] = styleRule.style.getPropertyValue(prop);
       }
+    }
 
-      styleRuleClone.style = style;
-      styleRuleClone.specialProperties = specialProps;
+    styleRuleClone.style = style;
+    styleRuleClone.specialProperties = specialProps;
 
-      if (
-        Object.keys(style).length <= 0 &&
-        Object.keys(specialProps).length <= 0
-      )
-        continue;
-      result.push(styleRuleClone);
-    } else if (rule.type === MEDIA_RULE_TYPE) {
-      const mediaRule = rule as CSSMediaRule;
-      const mediaRuleClone = new MediaRuleClone(ctx);
+    if (Object.keys(style).length > 0 || Object.keys(specialProps).length > 0)
+      result = styleRuleClone;
+  } else if (rule.type === MEDIA_RULE_TYPE) {
+    type = MEDIA_RULE_TYPE;
+    const mediaRule = rule as CSSMediaRule;
+    const mediaRuleClone = new MediaRuleClone(ctx);
 
-      const match = mediaRule.media.mediaText.match(/\(min-width:\s*(\d+)px\)/);
-      if (match) {
-        mediaRuleClone.minWidth = Number(match[1]);
-        mediaRuleClone.rules = cloneRules(mediaRule.cssRules, ctx).filter(
-          (rule) => rule.type === STYLE_RULE_TYPE
-        ) as StyleRuleClone[];
-      }
-      result.push(mediaRuleClone);
+    const match = mediaRule.media.mediaText.match(/\(min-width:\s*(\d+)px\)/);
+    if (match) {
+      mediaRuleClone.minWidth = Number(match[1]);
+      mediaRuleClone.rules = cloneRules(mediaRule.cssRules, ctx).filter(
+        (rule) => rule.type === STYLE_RULE_TYPE
+      ) as StyleRuleClone[];
+    }
+    result = mediaRuleClone;
+  }
+
+  if (event) {
+    if (result) event.emit("ruleCloned", ctx, { result });
+    else {
+      event.emit("ruleOmitted", ctx, {
+        why: type ? "nullResult" : "unsupportedRuleType",
+      });
     }
   }
   return result;
-}
+};
 
 let getAccessibleSheets = (doc: Document): CSSStyleSheet[] => {
   return Array.from(doc.styleSheets).filter((sheet) => {
@@ -121,10 +133,12 @@ function normalizeSelector(selector: string): string {
 
 function wrap(
   cloneDocWrapped: typeof cloneDoc,
-  getAccessibleSheetsWrapped: typeof getAccessibleSheets
+  getAccessibleSheetsWrapped: typeof getAccessibleSheets,
+  cloneRulesWrapped: typeof cloneRules
 ) {
   cloneDoc = cloneDocWrapped;
   getAccessibleSheets = getAccessibleSheetsWrapped;
+  cloneRules = cloneRulesWrapped;
 }
 
-export { cloneDoc, cloneRules, getAccessibleSheets, wrap };
+export { cloneDoc, cloneRule, cloneRules, getAccessibleSheets, wrap };

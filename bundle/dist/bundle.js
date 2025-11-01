@@ -96,6 +96,51 @@ var FluidScale = (() => {
     }
     return null;
   }
+  function getEventUUID(args) {
+    for (const arg of args) {
+      if (typeof arg === "object" && "eventUUID" in arg) {
+        return arg.eventUUID;
+      }
+    }
+    return void 0;
+  }
+  function getEventByUUID(eventBus, name, uuid) {
+    const event = eventBus.events[name]?.find((e) => e.uuid === uuid);
+    return event || null;
+  }
+  function withEventNames(args, eventNames, func) {
+    const eventBus = getEventBus(args);
+    const eventUUID = getEventUUID(args);
+    if (!eventBus) {
+      throw new Error("Event bus not found");
+    }
+    if (!eventUUID) {
+      throw new Error("Event UUID not found");
+    }
+    const events = {};
+    for (const name of eventNames) {
+      const event = getEventByUUID(eventBus, name, eventUUID);
+      if (event) {
+        events[name] = event;
+      }
+    }
+    return func(events, ...args);
+  }
+
+  // ../GoldSight/dist/utils/absCounter.js
+  var AbsCounter = class {
+    constructor(targetIndex) {
+      this.index = 0;
+      this.targetIndex = targetIndex;
+    }
+    match() {
+      if (this.index === this.targetIndex) {
+        return true;
+      }
+      this.index++;
+      return false;
+    }
+  };
 
   // ../GoldSight/dist/index.js
   var assertionQueues = {};
@@ -656,60 +701,70 @@ var FluidScale = (() => {
     }
     return docClone;
   };
-  function cloneRules(rules, ctx) {
-    const { isBrowser } = ctx;
-    const result = [];
-    for (const rule of Array.from(rules)) {
-      if (rule.type === STYLE_RULE_TYPE) {
-        const styleRule = rule;
-        const styleRuleClone = new StyleRuleClone(ctx);
-        styleRuleClone.selector = normalizeSelector(styleRule.selectorText);
-        const style = {};
-        const specialProps = {};
-        for (let i = 0; i < styleRule.style.length; i++) {
-          const prop = styleRule.style[i];
-          if (FLUID_PROPERTY_NAMES.has(prop)) {
-            const shorthandMap = SHORTHAND_PROPERTIES[prop];
-            if (shorthandMap) {
-              if (isBrowser) continue;
-              const values = splitBySpaces(
-                styleRule.style.getPropertyValue(prop)
-              );
-              const valuesCount = values.length;
-              const innerShorthandMap = shorthandMap.get(valuesCount);
-              for (const [index, value] of values.entries()) {
-                const valueMap = innerShorthandMap.get(index);
-                for (const valueProp of valueMap) {
-                  style[valueProp] = normalizeZero(value);
-                }
+  var cloneRules = (rules, ctx) => {
+    const result = Array.from(rules).map((rule) => cloneRule(rule, ctx)).filter((rule) => rule !== null);
+    return result;
+  };
+  var cloneRule = (rule, ctx) => {
+    const { isBrowser, event } = ctx;
+    let result = null;
+    let type = null;
+    if (rule.type === STYLE_RULE_TYPE) {
+      type = STYLE_RULE_TYPE;
+      const styleRule = rule;
+      const styleRuleClone = new StyleRuleClone(ctx);
+      styleRuleClone.selector = normalizeSelector(styleRule.selectorText);
+      const style = {};
+      const specialProps = {};
+      for (let i = 0; i < styleRule.style.length; i++) {
+        const prop = styleRule.style[i];
+        if (FLUID_PROPERTY_NAMES.has(prop)) {
+          const shorthandMap = SHORTHAND_PROPERTIES[prop];
+          if (shorthandMap) {
+            if (isBrowser) continue;
+            const values = splitBySpaces(styleRule.style.getPropertyValue(prop));
+            const valuesCount = values.length;
+            const innerShorthandMap = shorthandMap.get(valuesCount);
+            for (const [index, value] of values.entries()) {
+              const valueMap = innerShorthandMap.get(index);
+              for (const valueProp of valueMap) {
+                style[valueProp] = normalizeZero(value);
               }
-              continue;
             }
-            style[prop] = normalizeZero(styleRule.style.getPropertyValue(prop));
-          } else if (SPECIAL_PROPERTIES.has(prop)) {
-            specialProps[prop] = styleRule.style.getPropertyValue(prop);
+            continue;
           }
+          style[prop] = normalizeZero(styleRule.style.getPropertyValue(prop));
+        } else if (SPECIAL_PROPERTIES.has(prop)) {
+          specialProps[prop] = styleRule.style.getPropertyValue(prop);
         }
-        styleRuleClone.style = style;
-        styleRuleClone.specialProperties = specialProps;
-        if (Object.keys(style).length <= 0 && Object.keys(specialProps).length <= 0)
-          continue;
-        result.push(styleRuleClone);
-      } else if (rule.type === MEDIA_RULE_TYPE) {
-        const mediaRule = rule;
-        const mediaRuleClone = new MediaRuleClone(ctx);
-        const match = mediaRule.media.mediaText.match(/\(min-width:\s*(\d+)px\)/);
-        if (match) {
-          mediaRuleClone.minWidth = Number(match[1]);
-          mediaRuleClone.rules = cloneRules(mediaRule.cssRules, ctx).filter(
-            (rule2) => rule2.type === STYLE_RULE_TYPE
-          );
-        }
-        result.push(mediaRuleClone);
+      }
+      styleRuleClone.style = style;
+      styleRuleClone.specialProperties = specialProps;
+      if (Object.keys(style).length > 0 || Object.keys(specialProps).length > 0)
+        result = styleRuleClone;
+    } else if (rule.type === MEDIA_RULE_TYPE) {
+      type = MEDIA_RULE_TYPE;
+      const mediaRule = rule;
+      const mediaRuleClone = new MediaRuleClone(ctx);
+      const match = mediaRule.media.mediaText.match(/\(min-width:\s*(\d+)px\)/);
+      if (match) {
+        mediaRuleClone.minWidth = Number(match[1]);
+        mediaRuleClone.rules = cloneRules(mediaRule.cssRules, ctx).filter(
+          (rule2) => rule2.type === STYLE_RULE_TYPE
+        );
+      }
+      result = mediaRuleClone;
+    }
+    if (event) {
+      if (result) event.emit("ruleCloned", ctx, { result });
+      else {
+        event.emit("ruleOmitted", ctx, {
+          why: type ? "nullResult" : "unsupportedRuleType"
+        });
       }
     }
     return result;
-  }
+  };
   var getAccessibleSheets = (doc) => {
     return Array.from(doc.styleSheets).filter((sheet) => {
       try {
@@ -729,9 +784,40 @@ var FluidScale = (() => {
   function normalizeSelector(selector) {
     return selector.replace(/\*::(before|after)\b/g, "::$1").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
   }
-  function wrap(cloneDocWrapped, getAccessibleSheetsWrapped) {
+  function wrap(cloneDocWrapped, getAccessibleSheetsWrapped, cloneRulesWrapped) {
     cloneDoc = cloneDocWrapped;
     getAccessibleSheets = getAccessibleSheetsWrapped;
+    cloneRules = cloneRulesWrapped;
+  }
+
+  // test/parsing/serialization/docClonerController.ts
+  function findRules(doc, index) {
+    const counter = new AbsCounter(index);
+    for (const sheet of doc.sheets) {
+      if (counter.match()) return sheet.rules;
+      for (const rule of sheet.rules.filter(
+        (rule2) => rule2.type === MEDIA_RULE_TYPE
+      )) {
+        const mediaRule = rule;
+        if (counter.match()) return mediaRule.rules;
+      }
+    }
+    return [];
+  }
+  function findRule(doc, index) {
+    const counter = new AbsCounter(index);
+    for (const sheet of doc.sheets) {
+      for (const rule of sheet.rules) {
+        if (counter.match()) return rule;
+        if (rule.type === MEDIA_RULE_TYPE) {
+          const mediaRule = rule;
+          for (const styleRule of mediaRule.rules) {
+            if (counter.match()) return styleRule;
+          }
+        }
+      }
+    }
+    return null;
   }
 
   // test/parsing/serialization/docClonerGoldSight.ts
@@ -749,25 +835,56 @@ var FluidScale = (() => {
       expect(result.length).toBe(state.master.docClone.sheets.length);
     }
   };
+  var cloneRulesAssertionChain = {
+    "should clone the rules": (state, args, result) => {
+      expect(result).toEqual(
+        findRules(state.master.docClone, state.rulesIndex)
+      );
+    }
+  };
+  var cloneRuleAssertionChain = {
+    "should clone the rule": (state, args, result) => withEventNames(args, ["ruleCloned", "ruleOmitted"], (events) => {
+      if (events.ruleCloned) {
+        expect(result).toEqual(
+          findRule(state.master.docClone, state.ruleIndex)
+        );
+      } else if (events.ruleOmitted) {
+        if (events.ruleOmitted.payload.why === "nullResult" || events.ruleOmitted.payload.why === "unsupportedRuleType") {
+          expect(result).toBeNull();
+        }
+      }
+    })
+  };
   var defaultAssertions = {
     cloneDoc: cloneDocAssertionChain,
-    getAccessibleSheets: getAccessibleSheetsAssertionChain
+    getAccessibleSheets: getAccessibleSheetsAssertionChain,
+    cloneRules: cloneRulesAssertionChain,
+    cloneRule: cloneRuleAssertionChain
   };
   var DocClonerAssertionMaster = class extends dist_default {
     constructor() {
       super(defaultAssertions, "cloneDoc");
       this.cloneDoc = this.wrapTopFn(cloneDoc, "cloneDoc");
+      this.cloneRules = this.wrapFn(cloneRules, "cloneRules", {
+        post: (state) => {
+          state.rulesIndex++;
+        }
+      });
       this.getAccessibleSheets = this.wrapFn(getAccessibleSheets, "getAccessibleSheets");
     }
     newState() {
-      return {};
+      return {
+        rulesIndex: 0,
+        ruleIndex: 0
+      };
     }
   };
   var docClonerAssertionMaster = new DocClonerAssertionMaster();
   function wrapAll() {
     wrap(
       docClonerAssertionMaster.cloneDoc,
-      docClonerAssertionMaster.getAccessibleSheets
+      docClonerAssertionMaster.getAccessibleSheets,
+      docClonerAssertionMaster.cloneRules
     );
   }
 

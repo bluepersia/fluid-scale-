@@ -7,9 +7,13 @@ import AssertionMaster, { AssertionChainForFunc } from "gold-sight";
 import { DocClonerMaster, GoldSightState } from "./index.types";
 import {
   cloneDoc,
+  cloneRule,
+  cloneRules,
   getAccessibleSheets,
 } from "../../../src/parsing/serialization/docCloner";
 import { wrap } from "../../../src/parsing/serialization/docCloner";
+import * as controller from "./docClonerController";
+import { withEventNames } from "gold-sight";
 
 const cloneDocAssertionChain: AssertionChainForFunc<
   GoldSightState,
@@ -29,9 +33,43 @@ const getAccessibleSheetsAssertionChain: AssertionChainForFunc<
   },
 };
 
+const cloneRulesAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneRules
+> = {
+  "should clone the rules": (state, args, result) => {
+    expect(result).toEqual(
+      controller.findRules(state.master!.docClone, state.rulesIndex)
+    );
+  },
+};
+
+const cloneRuleAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneRule
+> = {
+  "should clone the rule": (state, args, result) =>
+    withEventNames(args, ["ruleCloned", "ruleOmitted"], (events) => {
+      if (events.ruleCloned) {
+        expect(result).toEqual(
+          controller.findRule(state.master!.docClone, state.ruleIndex)
+        );
+      } else if (events.ruleOmitted) {
+        if (
+          events.ruleOmitted.payload.why === "nullResult" ||
+          events.ruleOmitted.payload.why === "unsupportedRuleType"
+        ) {
+          expect(result).toBeNull();
+        }
+      }
+    }),
+};
+
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   getAccessibleSheets: getAccessibleSheetsAssertionChain,
+  cloneRules: cloneRulesAssertionChain,
+  cloneRule: cloneRuleAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -43,11 +81,18 @@ class DocClonerAssertionMaster extends AssertionMaster<
   }
 
   newState(): GoldSightState {
-    return {};
+    return {
+      rulesIndex: 0,
+      ruleIndex: 0,
+    };
   }
 
   cloneDoc = this.wrapTopFn(cloneDoc, "cloneDoc");
-
+  cloneRules = this.wrapFn(cloneRules, "cloneRules", {
+    post: (state) => {
+      state.rulesIndex++;
+    },
+  });
   getAccessibleSheets = this.wrapFn(getAccessibleSheets, "getAccessibleSheets");
 }
 
@@ -56,7 +101,8 @@ const docClonerAssertionMaster = new DocClonerAssertionMaster();
 function wrapAll() {
   wrap(
     docClonerAssertionMaster.cloneDoc,
-    docClonerAssertionMaster.getAccessibleSheets
+    docClonerAssertionMaster.getAccessibleSheets,
+    docClonerAssertionMaster.cloneRules
   );
 }
 

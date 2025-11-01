@@ -7,6 +7,8 @@ type DocClonerMaster = Master & {
 
 type GoldSightState = {
   master?: DocClonerMaster;
+  rulesIndex: number;
+  ruleIndex: number;
 };
 
 export { GoldSightState, DocClonerMaster };
