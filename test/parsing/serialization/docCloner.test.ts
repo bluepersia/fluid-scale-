@@ -4,7 +4,9 @@ import { docClonerCollection } from "./docClonerCollection";
 import { PlaywrightPage } from "../../index.types";
 import { AssertionBlueprint } from "gold-sight";
 import { docClonerAssertionMaster } from "./docClonerGoldSight";
-
+import { JSDOMDocs } from "../../setup";
+import { cloneDoc } from "../../../src/parsing/serialization/docCloner";
+import { makeDefaultGlobal } from "../../../src/utils/global";
 let playwrightPages: PlaywrightPage[] = [];
 
 beforeAll(async () => {
@@ -35,6 +37,18 @@ describe("docCloner", () => {
 
       docClonerAssertionMaster.setQueueFromArray(queue);
       docClonerAssertionMaster.assertQueue({ master });
+    }
+  );
+
+  test.each(docClonerCollection)(
+    "should clone the JSDOM document",
+    async (master) => {
+      const { index } = master;
+      const { doc } = JSDOMDocs[index];
+
+      docClonerAssertionMaster.master = master;
+      cloneDoc(doc, makeDefaultGlobal());
+      docClonerAssertionMaster.assertQueue();
     }
   );
 });

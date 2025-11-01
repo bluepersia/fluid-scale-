@@ -354,6 +354,34 @@ var FluidScale = (() => {
   var STYLE_RULE_TYPE = 1;
   var MEDIA_RULE_TYPE = 4;
 
+  // src/utils/stringHelpers.ts
+  function splitBySpaces(value) {
+    let depth = 0;
+    let currentValue = "";
+    const result = [];
+    for (const char of value) {
+      if (char === " ") {
+        if (depth === 0) {
+          result.push(currentValue);
+          currentValue = "";
+        } else {
+          currentValue += char;
+        }
+      } else {
+        if (char === "(") {
+          depth++;
+        } else if (char === ")") {
+          depth--;
+        }
+        currentValue += char;
+      }
+    }
+    if (currentValue) {
+      result.push(currentValue);
+    }
+    return result;
+  }
+
   // src/parsing/serialization/docClone.ts
   var _state;
   var DocClone = class {
@@ -643,7 +671,7 @@ var FluidScale = (() => {
       if (rule.type === STYLE_RULE_TYPE) {
         const styleRule = rule;
         const styleRuleClone = new StyleRuleClone(ctx);
-        styleRuleClone.selector = styleRule.selectorText;
+        styleRuleClone.selector = normalizeSelector(styleRule.selectorText);
         const style = {};
         const specialProps = {};
         for (let i = 0; i < styleRule.style.length; i++) {
@@ -652,9 +680,20 @@ var FluidScale = (() => {
             const shorthandMap = SHORTHAND_PROPERTIES[prop];
             if (shorthandMap) {
               if (isBrowser) continue;
+              const values = splitBySpaces(
+                styleRule.style.getPropertyValue(prop)
+              );
+              const valuesCount = values.length;
+              const innerShorthandMap = shorthandMap.get(valuesCount);
+              for (const [index, value] of values.entries()) {
+                const valueMap = innerShorthandMap.get(index);
+                for (const valueProp of valueMap) {
+                  style[valueProp] = normalizeZero(value);
+                }
+              }
               continue;
             }
-            style[prop] = styleRule.style.getPropertyValue(prop);
+            style[prop] = normalizeZero(styleRule.style.getPropertyValue(prop));
           } else if (SPECIAL_PROPERTIES.has(prop)) {
             specialProps[prop] = styleRule.style.getPropertyValue(prop);
           }
@@ -678,6 +717,15 @@ var FluidScale = (() => {
       }
     }
     return result;
+  }
+  function normalizeZero(input) {
+    return input.replace(
+      /(?<![\d.])0+(?:\.0+)?(?![\d.])(?!(px|em|rem|%|vh|vw|vmin|vmax|ch|ex|cm|mm|in|pt|pc)\b)/g,
+      "0px"
+    );
+  }
+  function normalizeSelector(selector) {
+    return selector.replace(/\*::(before|after)\b/g, "::$1").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
   }
   function wrap(cloneDocWrapped) {
     cloneDoc = cloneDocWrapped;

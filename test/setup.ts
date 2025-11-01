@@ -5,6 +5,10 @@ import http, { IncomingMessage, ServerResponse } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import { PlaywrightBlueprint, PlaywrightPage } from "./index.types.ts";
+import { generateJSDOMDocument } from "../src/parsing/jsdom/jsonBuilder.ts";
+import { wrapAll as wrapAllDocCloner } from "../test/parsing/serialization/docClonerGoldSight.ts";
+
+wrapAllDocCloner();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +29,11 @@ const realProjectsData: PlaywrightBlueprint[] = [
     useServer: true,
   },
 ];
+
+const JSDOMDocs = realProjectsData.map(({ htmlFilePath }, index) => {
+  const finalPath = path.resolve(__dirname, htmlFilePath, "index.html");
+  return { doc: generateJSDOMDocument([finalPath]), index };
+});
 
 async function startStaticServer(folder: string) {
   const serve = serveStatic(path.resolve(folder), { index: ["index.html"] });
@@ -146,4 +155,5 @@ export {
   startBrowserPage,
   closeBrowserPage,
   onLoadBrowserPage,
+  JSDOMDocs,
 };
