@@ -61,7 +61,7 @@ class RuleClone {
 class StyleRuleClone extends RuleClone {
   public selector: string = "";
   public style: Record<string, string> = {};
-  public specialProperties: Record<string, string> = {};
+  public specialProps: Record<string, string> = {};
   constructor(state: Global) {
     super(STYLE_RULE_TYPE, state);
   }

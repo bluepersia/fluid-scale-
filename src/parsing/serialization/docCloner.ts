@@ -13,6 +13,7 @@ import {
   CloneFluidPropResult,
   ClonePropContext,
   ClonePropsState,
+  CloneSpecialPropContext,
 } from "./docCloner.types";
 import {
   FLUID_PROPERTY_NAMES,
@@ -103,7 +104,7 @@ let cloneStyleRule = (
   }
 
   styleRuleClone.style = style;
-  styleRuleClone.specialProperties = specialProps;
+  styleRuleClone.specialProps = specialProps;
 
   event?.emit("styleRuleCloned", ctx, { result: styleRuleClone });
   return styleRuleClone;
@@ -128,13 +129,25 @@ let cloneProp = (
     }
     return { style: fluidPropResult.style, specialProps };
   } else if (SPECIAL_PROPERTIES.has(prop)) {
-    specialProps = { ...specialProps };
-    specialProps[prop] = styleRule.style.getPropertyValue(prop);
+    specialProps = cloneSpecialProp(styleRule, prop, { ...ctx, specialProps });
     event?.emit("specialPropCloned", ctx, { prop, value: specialProps[prop] });
     return { style, specialProps };
   }
   event?.emit("propOmitted", ctx, { prop, why: "notFluidOrSpecial" });
   return propsState;
+};
+
+let cloneSpecialProp = (
+  styleRule: CSSStyleRule,
+  prop: string,
+  ctx: CloneSpecialPropContext
+): Record<string, string> => {
+  const { event } = ctx;
+  let { specialProps } = ctx;
+  specialProps = { ...specialProps };
+  specialProps[prop] = styleRule.style.getPropertyValue(prop);
+  event?.emit("specialPropCloned", ctx, { prop, value: specialProps[prop] });
+  return specialProps;
 };
 
 let cloneFluidProp = (
@@ -220,7 +233,8 @@ function wrap(
   cloneStyleRuleWrapped: typeof cloneStyleRule,
   cloneMediaRuleWrapped: typeof cloneMediaRule,
   clonePropWrapped: typeof cloneProp,
-  cloneFluidPropWrapped: typeof cloneFluidProp
+  cloneFluidPropWrapped: typeof cloneFluidProp,
+  cloneSpecialPropWrapped: typeof cloneSpecialProp
 ) {
   cloneDoc = cloneDocWrapped;
   getAccessibleSheets = getAccessibleSheetsWrapped;
@@ -230,6 +244,7 @@ function wrap(
   cloneMediaRule = cloneMediaRuleWrapped;
   cloneProp = clonePropWrapped;
   cloneFluidProp = cloneFluidPropWrapped;
+  cloneSpecialProp = cloneSpecialPropWrapped;
 }
 
 export {
@@ -242,4 +257,5 @@ export {
   cloneMediaRule,
   cloneProp,
   cloneFluidProp,
+  cloneSpecialProp,
 };

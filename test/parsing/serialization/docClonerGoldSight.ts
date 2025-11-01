@@ -12,6 +12,7 @@ import {
   cloneProp,
   cloneRule,
   cloneRules,
+  cloneSpecialProp,
   cloneStyleRule,
   getAccessibleSheets,
 } from "../../../src/parsing/serialization/docCloner";
@@ -146,7 +147,7 @@ const clonePropAssertionChain: AssertionChainForFunc<
           assertShorthandExpanded(prop, result.style, masterRule!);
         } else if (events.specialPropCloned) {
           expect(result.specialProps[prop]).toBe(
-            masterRule!.specialProperties[prop]
+            masterRule!.specialProps[prop]
           );
         } else if (events.propOmitted) {
           if (
@@ -198,6 +199,18 @@ const cloneFluidPropAssertionChain: AssertionChainForFunc<
     ),
 };
 
+const cloneSpecialPropAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneSpecialProp
+> = {
+  "should clone the special prop": (state, args, result) => {
+    const masterRule = controller.findStyleRule(
+      state.master!.docClone,
+      state.styleRuleIndex - 1
+    );
+    expect(result).toEqual(masterRule!.specialProps);
+  },
+};
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   getAccessibleSheets: getAccessibleSheetsAssertionChain,
@@ -207,6 +220,7 @@ const defaultAssertions = {
   cloneMediaRule: cloneMediaRuleAssertionChain,
   cloneProp: clonePropAssertionChain,
   cloneFluidProp: cloneFluidPropAssertionChain,
+  cloneSpecialProp: cloneSpecialPropAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -267,6 +281,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
   });
   cloneProp = this.wrapFn(cloneProp, "cloneProp");
   cloneFluidProp = this.wrapFn(cloneFluidProp, "cloneFluidProp");
+  cloneSpecialProp = this.wrapFn(cloneSpecialProp, "cloneSpecialProp");
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -280,7 +295,8 @@ function wrapAll() {
     docClonerAssertionMaster.cloneStyleRule,
     docClonerAssertionMaster.cloneMediaRule,
     docClonerAssertionMaster.cloneProp,
-    docClonerAssertionMaster.cloneFluidProp
+    docClonerAssertionMaster.cloneFluidProp,
+    docClonerAssertionMaster.cloneSpecialProp
   );
 }
 

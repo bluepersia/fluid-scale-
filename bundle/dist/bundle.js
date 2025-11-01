@@ -535,7 +535,7 @@ var FluidScale = (() => {
       super(STYLE_RULE_TYPE, state);
       this.selector = "";
       this.style = {};
-      this.specialProperties = {};
+      this.specialProps = {};
     }
   };
   var MediaRuleClone = class extends RuleClone {
@@ -827,7 +827,7 @@ var FluidScale = (() => {
       return null;
     }
     styleRuleClone.style = style;
-    styleRuleClone.specialProperties = specialProps;
+    styleRuleClone.specialProps = specialProps;
     event?.emit("styleRuleCloned", ctx, { result: styleRuleClone });
     return styleRuleClone;
   };
@@ -846,13 +846,20 @@ var FluidScale = (() => {
       }
       return { style: fluidPropResult.style, specialProps };
     } else if (SPECIAL_PROPERTIES.has(prop)) {
-      specialProps = { ...specialProps };
-      specialProps[prop] = styleRule.style.getPropertyValue(prop);
+      specialProps = cloneSpecialProp(styleRule, prop, { ...ctx, specialProps });
       event?.emit("specialPropCloned", ctx, { prop, value: specialProps[prop] });
       return { style, specialProps };
     }
     event?.emit("propOmitted", ctx, { prop, why: "notFluidOrSpecial" });
     return propsState;
+  };
+  var cloneSpecialProp = (styleRule, prop, ctx) => {
+    const { event } = ctx;
+    let { specialProps } = ctx;
+    specialProps = { ...specialProps };
+    specialProps[prop] = styleRule.style.getPropertyValue(prop);
+    event?.emit("specialPropCloned", ctx, { prop, value: specialProps[prop] });
+    return specialProps;
   };
   var cloneFluidProp = (styleRule, prop, ctx) => {
     const { isBrowser, event } = ctx;
@@ -912,7 +919,7 @@ var FluidScale = (() => {
   function normalizeSelector(selector) {
     return selector.replace(/\*::(before|after)\b/g, "::$1").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
   }
-  function wrap(cloneDocWrapped, getAccessibleSheetsWrapped, cloneRulesWrapped, cloneRuleWrapped, cloneStyleRuleWrapped, cloneMediaRuleWrapped, clonePropWrapped, cloneFluidPropWrapped) {
+  function wrap(cloneDocWrapped, getAccessibleSheetsWrapped, cloneRulesWrapped, cloneRuleWrapped, cloneStyleRuleWrapped, cloneMediaRuleWrapped, clonePropWrapped, cloneFluidPropWrapped, cloneSpecialPropWrapped) {
     cloneDoc = cloneDocWrapped;
     getAccessibleSheets = getAccessibleSheetsWrapped;
     cloneRules = cloneRulesWrapped;
@@ -921,6 +928,7 @@ var FluidScale = (() => {
     cloneMediaRule = cloneMediaRuleWrapped;
     cloneProp = clonePropWrapped;
     cloneFluidProp = cloneFluidPropWrapped;
+    cloneSpecialProp = cloneSpecialPropWrapped;
   }
 
   // test/parsing/serialization/docClonerController.ts
@@ -1071,7 +1079,7 @@ var FluidScale = (() => {
           assertShorthandExpanded(prop, result.style, masterRule);
         } else if (events.specialPropCloned) {
           expect(result.specialProps[prop]).toBe(
-            masterRule.specialProperties[prop]
+            masterRule.specialProps[prop]
           );
         } else if (events.propOmitted) {
           if (events.propOmitted.payload.why === "notFluidOrSpecial" || events.propOmitted.payload.why === "browserHandlesShorthands")
@@ -1110,6 +1118,15 @@ var FluidScale = (() => {
       }
     )
   };
+  var cloneSpecialPropAssertionChain = {
+    "should clone the special prop": (state, args, result) => {
+      const masterRule = findStyleRule(
+        state.master.docClone,
+        state.styleRuleIndex - 1
+      );
+      expect(result).toEqual(masterRule.specialProps);
+    }
+  };
   var defaultAssertions = {
     cloneDoc: cloneDocAssertionChain,
     getAccessibleSheets: getAccessibleSheetsAssertionChain,
@@ -1118,7 +1135,8 @@ var FluidScale = (() => {
     cloneStyleRule: cloneStyleRuleAssertionChain,
     cloneMediaRule: cloneMediaRuleAssertionChain,
     cloneProp: clonePropAssertionChain,
-    cloneFluidProp: cloneFluidPropAssertionChain
+    cloneFluidProp: cloneFluidPropAssertionChain,
+    cloneSpecialProp: cloneSpecialPropAssertionChain
   };
   var DocClonerAssertionMaster = class extends dist_default {
     constructor() {
@@ -1161,6 +1179,7 @@ var FluidScale = (() => {
       });
       this.cloneProp = this.wrapFn(cloneProp, "cloneProp");
       this.cloneFluidProp = this.wrapFn(cloneFluidProp, "cloneFluidProp");
+      this.cloneSpecialProp = this.wrapFn(cloneSpecialProp, "cloneSpecialProp");
     }
     newState() {
       return {
@@ -1181,7 +1200,8 @@ var FluidScale = (() => {
       docClonerAssertionMaster.cloneStyleRule,
       docClonerAssertionMaster.cloneMediaRule,
       docClonerAssertionMaster.cloneProp,
-      docClonerAssertionMaster.cloneFluidProp
+      docClonerAssertionMaster.cloneFluidProp,
+      docClonerAssertionMaster.cloneSpecialProp
     );
   }
 

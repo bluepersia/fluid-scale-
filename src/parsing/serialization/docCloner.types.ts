@@ -11,6 +11,9 @@ type CloneFluidPropContext = ClonePropContext & {
   style: Record<string, string>;
 };
 
+type CloneSpecialPropContext = ClonePropContext & {
+  specialProps: Record<string, string>;
+};
 type ClonePropsState = {
   style: Record<string, string>;
   specialProps: Record<string, string>;
@@ -27,4 +30,5 @@ export {
   CloneFluidPropContext,
   ClonePropsState,
   CloneFluidPropResult,
+  CloneSpecialPropContext,
 };
