@@ -63,6 +63,7 @@ class StyleRuleClone extends RuleClone {
   public selector: string = "";
   public style: Record<string, string> = {};
   public specialProps: Record<string, string> = {};
+  public orderID: number = -1;
   constructor(state: Global) {
     super(STYLE_RULE_TYPE, state);
   }
@@ -73,6 +74,12 @@ class MediaRuleClone extends RuleClone {
   public minWidth: number = 0;
   constructor(state: Global) {
     super(MEDIA_RULE_TYPE, state);
+  }
+
+  addStyleRule() {
+    const newStyleRule = new StyleRuleClone(this.state);
+    this.rules.push(newStyleRule);
+    return newStyleRule;
   }
 }
 
