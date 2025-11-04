@@ -13,7 +13,10 @@ import {
   SPECIAL_PROPERTIES,
 } from "./docClonerConsts";
 
-function cloneDoc(doc: Document, ctx: CloneDocContext): DocClone {
+let cloneDoc: (doc: Document, ctx: CloneDocContext) => DocClone = (
+  doc: Document,
+  ctx: CloneDocContext
+): DocClone => {
   const docClone = new DocClone(ctx);
 
   const accessibleSheets = Array.from(doc.styleSheets).filter((sheet) => {
@@ -33,7 +36,7 @@ function cloneDoc(doc: Document, ctx: CloneDocContext): DocClone {
   }
 
   return docClone;
-}
+};
 
 function cloneRules(rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] {
   const { isBrowser } = ctx;
@@ -97,4 +100,8 @@ function cloneRules(rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] {
     .filter((rule) => rule !== null);
 }
 
-export { cloneDoc, cloneRules };
+function wrap(cloneDocWrapped: typeof cloneDoc) {
+  cloneDoc = cloneDocWrapped;
+}
+
+export { cloneDoc, cloneRules, wrap };
