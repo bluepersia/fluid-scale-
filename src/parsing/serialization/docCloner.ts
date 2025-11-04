@@ -77,6 +77,9 @@ function cloneRules(rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] {
 
         styleRuleClone.style = style;
         styleRuleClone.specialProps = specialProps;
+
+        ctx.counter.orderID++;
+        styleRuleClone.orderID = ctx.counter.orderID;
         return styleRuleClone;
       } else if (rule.type === MEDIA_RULE_TYPE) {
         const mediaRule = rule as CSSMediaRule;

@@ -123,10 +123,6 @@ async function closeBrowserPage({
   if (server) await server.close();
 }
 
-async function gotoPage(page: Page, url: string) {
-  await page.goto(url);
-}
-
 async function initPlaywrightPages(): Promise<PlaywrightPage[]> {
   return await Promise.all(
     realProjectsData.map(async ({ htmlFilePath, addCss, useServer }) => {
