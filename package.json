@@ -4,9 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build:types": "tsc -p tsconfig.json",
+    "build:bundle": "node ./scripts/build-bundle.mjs",
+    "build": "npm run build:types && npm run build:bundle && tsc && vite build",
+    "preview": "vite preview",
+    "test": "npm run build && vitest --run --reporter verbose"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

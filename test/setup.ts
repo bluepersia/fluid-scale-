@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import type { Browser, Page } from "playwright";
 import serveStatic from "serve-static";
 import finalhandler from "finalhandler";
-import http, { IncomingMessage, ServerResponse } from "http";
+import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import type { PlaywrightBlueprint, PlaywrightPage } from "./index.types.ts";
