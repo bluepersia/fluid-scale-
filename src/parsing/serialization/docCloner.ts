@@ -19,15 +19,7 @@ let cloneDoc: (doc: Document, ctx: CloneDocContext) => DocClone = (
 ): DocClone => {
   const docClone = new DocClone(ctx);
 
-  const accessibleSheets = Array.from(doc.styleSheets).filter((sheet) => {
-    try {
-      const rules = sheet.cssRules;
-      return rules ? true : false;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      return false;
-    }
-  });
+  const accessibleSheets = filterAccessibleSheets(doc.styleSheets);
 
   for (const sheet of accessibleSheets) {
     const sheetClone = new SheetClone(ctx);
@@ -103,8 +95,26 @@ function cloneRules(rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] {
     .filter((rule) => rule !== null);
 }
 
-function wrap(cloneDocWrapped: typeof cloneDoc) {
+let filterAccessibleSheets: (sheets: StyleSheetList) => CSSStyleSheet[] = (
+  sheets: StyleSheetList
+): CSSStyleSheet[] => {
+  return Array.from(sheets).filter((sheet) => {
+    try {
+      const rules = sheet.cssRules;
+      return rules ? true : false;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (err) {
+      return false;
+    }
+  });
+};
+
+function wrap(
+  cloneDocWrapped: typeof cloneDoc,
+  filterAccessibleSheetsWrapped: typeof filterAccessibleSheets
+) {
   cloneDoc = cloneDocWrapped;
+  filterAccessibleSheets = filterAccessibleSheetsWrapped;
 }
 
-export { cloneDoc, cloneRules, wrap };
+export { cloneDoc, cloneRules, wrap, filterAccessibleSheets };
