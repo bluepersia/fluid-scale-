@@ -21,13 +21,20 @@ let cloneDoc: (doc: Document, ctx: CloneDocContext) => DocClone = (
 
   const accessibleSheets = filterAccessibleSheets(doc.styleSheets);
 
-  for (const sheet of accessibleSheets) {
-    const sheetClone = new SheetClone(ctx);
-    docClone.sheets.push(sheetClone);
-    sheetClone.rules = cloneRules(sheet.cssRules, ctx);
-  }
+  docClone.sheets = accessibleSheets.map((sheet) =>
+    cloneStyleSheet(sheet, ctx)
+  );
 
   return docClone;
+};
+
+let cloneStyleSheet: (
+  sheet: CSSStyleSheet,
+  ctx: CloneDocContext
+) => SheetClone = (sheet: CSSStyleSheet, ctx: CloneDocContext): SheetClone => {
+  const sheetClone = new SheetClone(ctx);
+  sheetClone.rules = cloneRules(sheet.cssRules, ctx);
+  return sheetClone;
 };
 
 function cloneRules(rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] {
@@ -111,10 +118,12 @@ let filterAccessibleSheets: (sheets: StyleSheetList) => CSSStyleSheet[] = (
 
 function wrap(
   cloneDocWrapped: typeof cloneDoc,
-  filterAccessibleSheetsWrapped: typeof filterAccessibleSheets
+  filterAccessibleSheetsWrapped: typeof filterAccessibleSheets,
+  cloneStyleSheetWrapped: typeof cloneStyleSheet
 ) {
   cloneDoc = cloneDocWrapped;
   filterAccessibleSheets = filterAccessibleSheetsWrapped;
+  cloneStyleSheet = cloneStyleSheetWrapped;
 }
 
-export { cloneDoc, cloneRules, wrap, filterAccessibleSheets };
+export { cloneDoc, cloneRules, wrap, filterAccessibleSheets, cloneStyleSheet };

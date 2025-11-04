@@ -3,6 +3,7 @@ import type { Master } from "../../index.types";
 
 type GoldSightState = {
   master?: DocClonerMaster;
+  sheetIndex: number;
 };
 
 type DocClonerMaster = Master & {
