@@ -1,15 +1,11 @@
-import { Browser, chromium, Page } from "playwright";
+import { chromium } from "playwright";
+import type { Browser, Page } from "playwright";
 import serveStatic from "serve-static";
 import finalhandler from "finalhandler";
 import http, { IncomingMessage, ServerResponse } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
-import { PlaywrightBlueprint, PlaywrightPage } from "./index.types.ts";
-import { wrapAll as wrapAllDocCloner } from "../test/parsing/serialization/docClonerGoldSight.ts";
-import { wrapAll as wrapAllDocParser } from "../test/parsing/parser/docParserGoldSight.ts";
-
-wrapAllDocCloner();
-wrapAllDocParser();
+import type { PlaywrightBlueprint, PlaywrightPage } from "./index.types.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
