@@ -11,9 +11,6 @@ export default defineConfig([
   {
     files: ["src/**/*.{js,mjs,cjs,ts,mts,cts}"],
     plugins: { js },
-    rules: {
-      "@typescript-eslint/no-empty-object-type": "off",
-    },
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: { globals: { ...globals.browser, dev: "readonly" } },
   },

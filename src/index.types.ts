@@ -1,8 +1,12 @@
 type Global = UserSettings & Features & {};
 
-type UserSettings = {};
+type UserSettings = {
+  autoForce: boolean;
+};
 
-type Features = {};
+type Features = {
+  isBrowser: boolean;
+};
 
 const STYLE_RULE_TYPE = 1;
 const MEDIA_RULE_TYPE = 4;
