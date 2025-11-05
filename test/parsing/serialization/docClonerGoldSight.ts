@@ -314,7 +314,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
     "filterAccessibleSheets"
   );
   cloneStyleSheet = this.wrapFn(cloneStyleSheet, "cloneStyleSheet", {
-    getId: (state, args) => {
+    getAddress: (state, args) => {
       return `sheetIndex:${state.sheetIndex}/href:${args[0].href || ""}`;
     },
     post: (state) => {
@@ -322,7 +322,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
     },
   });
   cloneRules = this.wrapFn(cloneRules, "cloneRules", {
-    getId: (state, args) => {
+    getAddress: (state, args) => {
       let base = `rulesIndex:${state.rulesIndex}`;
       const [, ctx] = args;
       const { rulesParent } = ctx;
@@ -334,7 +334,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
     },
   });
   cloneRule = this.wrapFn(cloneRule, "cloneRule", {
-    getId: (state, args) => {
+    getAddress: (state, args) => {
       let base = `ruleIndex:${state.ruleIndex}`;
       const [rule, ctx] = args;
       if (rule.type === STYLE_RULE_TYPE) {
@@ -354,7 +354,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
       }),
   });
   cloneStyleRule = this.wrapFn(cloneStyleRule, "cloneStyleRule", {
-    getId: (state, args) => {
+    getAddress: (state, args) => {
       return `styleRuleIndex:${state.styleRuleIndex}/selector:${
         args[0].selectorText || ""
       }/mediaWidth:${args[1].mediaWidth || "baseline"}`;
@@ -365,7 +365,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
       }),
   });
   cloneMediaRule = this.wrapFn(cloneMediaRule, "cloneMediaRule", {
-    getId: (state, args) => {
+    getAddress: (state, args) => {
       return `mediaRuleIndex:${state.mediaRuleIndex}/mediaText:${args[0].media.mediaText}`;
     },
     post: (state, args) =>
@@ -374,21 +374,21 @@ class DocClonerAssertionMaster extends AssertionMaster<
       }),
   });
   cloneProp = this.wrapFn(cloneProp, "cloneProp", {
-    getId: (_state, args) => {
+    getAddress: (_state, args) => {
       return `selector:${args[0].selectorText}/mediaWidth:${
         args[2].mediaWidth || "baseline"
       }/property:${args[1]}`;
     },
   });
   cloneFluidProp = this.wrapFn(cloneFluidProp, "cloneFluidProp", {
-    getId: (_state, args) => {
+    getAddress: (_state, args) => {
       return `property:${args[0]}/styleRule:${
         args[2].styleRule.selectorText
       }/mediaWidth:${args[2].mediaWidth || "baseline"}`;
     },
   });
   cloneSpecialProp = this.wrapFn(cloneSpecialProp, "cloneSpecialProp", {
-    getId: (_state, args) => {
+    getAddress: (_state, args) => {
       return `property:${args[0]}/styleRule:${
         args[2].styleRule.selectorText
       }/mediaWidth:${args[2].mediaWidth || "baseline"}`;
