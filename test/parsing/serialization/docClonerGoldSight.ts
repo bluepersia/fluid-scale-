@@ -29,6 +29,7 @@ import * as controller from "./docClonerController";
 import type { ExpectStatic } from "vitest";
 import { EXPLICIT_PROPS_FOR_SHORTHAND } from "../../../src/parsing/serialization/docClonerConsts";
 import type { ClonePropsState } from "../../../src/parsing/serialization/docCloner.types";
+import { MEDIA_RULE_TYPE, STYLE_RULE_TYPE } from "../../../src/index.types";
 
 const cloneDocAssertionChain: AssertionChainForFunc<
   GoldSightState,
@@ -321,16 +322,31 @@ class DocClonerAssertionMaster extends AssertionMaster<
     },
   });
   cloneRules = this.wrapFn(cloneRules, "cloneRules", {
-    getId: (state) => {
-      return `rulesIndex:${state.rulesIndex}`;
+    getId: (state, args) => {
+      let base = `rulesIndex:${state.rulesIndex}`;
+      const [, ctx] = args;
+      const { rulesParent } = ctx;
+      base += `/parent:${rulesParent}`;
+      return base;
     },
     post: (state) => {
       state.rulesIndex++;
     },
   });
   cloneRule = this.wrapFn(cloneRule, "cloneRule", {
-    getId: (state) => {
-      return `ruleIndex:${state.ruleIndex}`;
+    getId: (state, args) => {
+      let base = `ruleIndex:${state.ruleIndex}`;
+      const [rule, ctx] = args;
+      if (rule.type === STYLE_RULE_TYPE) {
+        const styleRule = rule as CSSStyleRule;
+        base += `/selector:${styleRule.selectorText}/${
+          ctx.mediaWidth || "baseline"
+        }`;
+      } else if (rule.type === MEDIA_RULE_TYPE) {
+        const mediaRule = rule as CSSMediaRule;
+        base += `/mediaText:${mediaRule.media.mediaText}`;
+      }
+      return base;
     },
     post: (state, args) =>
       withEventNames(args, ["ruleCloned"], (events) => {

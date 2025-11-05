@@ -13,6 +13,7 @@ import type {
   ClonePropContext,
   ClonePropsState,
   CloneRulesContext,
+  CloneSheetContext,
   CloneSpecialPropContext,
 } from "./docCloner.types";
 import {
@@ -26,8 +27,8 @@ let cloneDoc = (doc: Document, ctx: CloneDocContext): DocClone => {
 
   const accessibleSheets = filterAccessibleSheets(doc.styleSheets);
 
-  docClone.sheets = accessibleSheets.map((sheet) =>
-    cloneStyleSheet(sheet, ctx)
+  docClone.sheets = accessibleSheets.map((sheet, sheetIndex) =>
+    cloneStyleSheet(sheet, dev ? { ...ctx, sheetIndex } : ctx)
   );
 
   return docClone;
@@ -35,10 +36,14 @@ let cloneDoc = (doc: Document, ctx: CloneDocContext): DocClone => {
 
 let cloneStyleSheet = (
   sheet: CSSStyleSheet,
-  ctx: CloneDocContext
+  ctx: CloneSheetContext
 ): SheetClone => {
   const sheetClone = new SheetClone(ctx);
-  sheetClone.rules = cloneRules(sheet.cssRules, ctx);
+
+  const subCtx = ctx as CloneRulesContext;
+  if (dev) subCtx.rulesParent = `sheetIndex:${ctx.sheetIndex}`;
+
+  sheetClone.rules = cloneRules(sheet.cssRules, subCtx);
   return sheetClone;
 };
 
@@ -215,6 +220,7 @@ let cloneMediaRule = (
 
     const subCtx: CloneRulesContext = {
       ...ctx,
+      rulesParent: mediaRule.media.mediaText,
     };
     if (dev) {
       event?.emit("mediaRuleCloned", ctx, { rule: mediaRuleClone });

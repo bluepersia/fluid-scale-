@@ -7,8 +7,13 @@ type CloneDocContext = Global &
     };
   };
 
-type CloneRulesContext = CloneDocContext & {
+type CloneSheetContext = CloneDocContext & {
+  sheetIndex?: number;
+};
+
+type CloneRulesContext = CloneSheetContext & {
   mediaWidth?: number;
+  rulesParent: string;
 };
 
 type ClonePropContext = CloneRulesContext & {
@@ -35,4 +40,5 @@ export type {
   ClonePropContext,
   CloneFluidPropContext,
   CloneSpecialPropContext,
+  CloneSheetContext,
 };
