@@ -6,6 +6,7 @@ import AssertionMaster, {
   filterEventsByPayload,
   withEventBus,
   withEventNames,
+  withEvents,
   type AssertionChainForFunc,
 } from "gold-sight";
 import type { DocClonerMaster, GoldSightState } from "./index.types";
@@ -144,9 +145,39 @@ const clonePropAssertionChain: AssertionChainForFunc<
   GoldSightState,
   typeof cloneProp
 > = {
-  "should clone prop": (_state) => {
-    return;
-  },
+  "should clone prop": (state, args, result) =>
+    withEvents(args, (eventBus) => {
+      const [styleRule, property, ctx] = args;
+      const { propsState } = ctx;
+      const masterRule = controller.findStyleRule(
+        state.master!.docClone,
+        state.styleRuleIndex - 1
+      );
+      const fluidPropEvents = filterEventsByPayload(eventBus, "*", {
+        eventType: "fluidProp",
+        property,
+        styleRule,
+      });
+
+      if (fluidPropEvents.length === 1) {
+        const event = fluidPropEvents[0];
+        if (event.name === "fluidPropCloned") {
+          FLUID_PROP_EVENTS_ROUTER.fluidPropCloned(
+            result.style,
+            masterRule!.style,
+            property
+          );
+        } else if (event.name === "expandedShorthand") {
+          FLUID_PROP_EVENTS_ROUTER.expandedShorthand(
+            result.style,
+            masterRule!.style,
+            property
+          );
+        } else if (event.name === "propOmitted") {
+          FLUID_PROP_EVENTS_ROUTER.propOmitted(result, propsState);
+        }
+      }
+    }),
 };
 
 const cloneFluidPropAssertionChain: AssertionChainForFunc<
