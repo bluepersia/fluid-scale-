@@ -4,6 +4,7 @@ if (process.env.NODE_ENV === "test") {
 }
 import AssertionMaster, {
   filterEventsByPayload,
+  getEventByPayload,
   getEventByUUID,
   withEventBus,
   withEventNames,
@@ -155,20 +156,22 @@ const clonePropAssertionChain: AssertionChainForFunc<
         state.master!.docClone,
         state.styleRuleIndex - 1
       );
-      const fluidPropEvents = filterEventsByPayload(eventBus, "*", {
+      const fluidPropEvent = getEventByPayload(eventBus, "*", {
         eventType: "fluidProp",
         property,
         styleRule,
       });
 
-      const specialPropEvents = filterEventsByPayload(eventBus, "*", {
+      const specialPropEvent = getEventByPayload(eventBus, "*", {
         eventType: "specialProp",
         property,
         styleRule,
       });
 
-      if (fluidPropEvents.length === 1) {
-        const event = fluidPropEvents[0];
+      const omittedEvent = getEventByUUID(eventBus, "propOmitted", eventUUID);
+
+      if (fluidPropEvent) {
+        const event = fluidPropEvent;
         if (event.name === "fluidPropCloned") {
           FLUID_PROP_EVENTS_ROUTER.fluidPropCloned(
             result.style,
@@ -184,16 +187,17 @@ const clonePropAssertionChain: AssertionChainForFunc<
         } else if (event.name === "propOmitted") {
           FLUID_PROP_EVENTS_ROUTER.propOmitted(result, propsState);
         }
-      } else if (specialPropEvents.length === 1) {
-        const event = specialPropEvents[0];
+      } else if (specialPropEvent) {
+        const event = specialPropEvent;
         if (event.name === "specialPropCloned") {
           expect(result.specialProps[property]).toBe(
             masterRule!.specialProps[property]
           );
         }
+      } else if (omittedEvent) {
+        expect(result).toBe(propsState);
       } else {
-        if (!getEventByUUID(eventBus, "propOmitted", eventUUID))
-          throw Error("Unexpected event");
+        throw Error("unknown event");
       }
     }),
 };
@@ -260,6 +264,15 @@ const cloneSpecialPropAssertionChain: AssertionChainForFunc<
       } else {
         throw Error("unknown event");
       }
+    }),
+  "should emit one event": (_state, args) =>
+    withEventBus(args, (eventBus) => {
+      const [property, , ctx] = args;
+      const { styleRule } = ctx;
+      const key = { property, styleRule };
+      const events = filterEventsByPayload(eventBus, "*", key);
+
+      expect(events.length).toBe(1);
     }),
 };
 
