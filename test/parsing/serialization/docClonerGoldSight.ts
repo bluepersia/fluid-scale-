@@ -20,6 +20,7 @@ import {
 } from "../../../src/parsing/serialization/docCloner";
 import * as controller from "./docClonerController";
 import type { ExpectStatic } from "vitest";
+import { EXPLICIT_PROPS_FOR_SHORTHAND } from "../../../src/parsing/serialization/docClonerConsts";
 
 const cloneDocAssertionChain: AssertionChainForFunc<
   GoldSightState,
@@ -120,7 +121,12 @@ const clonePropAssertionChain: AssertionChainForFunc<
   "should clone prop": (state, args, result) =>
     withEventNames(
       args,
-      ["fluidPropCloned", "specialPropCloned", "propOmitted"],
+      [
+        "fluidPropCloned",
+        "specialPropCloned",
+        "propOmitted",
+        "expandedShorthand",
+      ],
       (events) => {
         const [, property, ctx] = args;
         const { propsState } = ctx;
@@ -135,7 +141,13 @@ const clonePropAssertionChain: AssertionChainForFunc<
             masterRule!.specialProps[property]
           );
         } else if (events.expandedShorthand) {
-          //TODO: test expanded shorthand
+          for (const explicitProp of EXPLICIT_PROPS_FOR_SHORTHAND.get(
+            property
+          )!) {
+            expect(result.style[explicitProp]).toBe(
+              masterRule!.style[explicitProp]
+            );
+          }
         } else if (events.propOmitted) {
           expect(result).toBe(propsState);
         } else {

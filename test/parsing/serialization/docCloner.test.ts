@@ -1,9 +1,15 @@
 import { describe, test, beforeAll, afterAll } from "vitest";
-import { initPlaywrightPages, teardownPlaywrightPages } from "../../setup";
+import {
+  initPlaywrightPages,
+  JSDOMDocs,
+  teardownPlaywrightPages,
+} from "../../setup";
 import { docClonerCollection } from "./docClonerCollection.ts";
 import type { PlaywrightPage } from "../../index.types";
-import { type AssertionBlueprint } from "gold-sight";
+import { EventBus, type AssertionBlueprint } from "gold-sight";
 import { docClonerAssertionMaster } from "./docClonerGoldSight";
+import { cloneDoc } from "../../../src/parsing/serialization/docCloner.ts";
+import { makeDefaultGlobal } from "../../../src/utils/global.ts";
 
 let playwrightPages: PlaywrightPage[] = [];
 
@@ -39,6 +45,24 @@ describe("docCloner", () => {
       );
 
       docClonerAssertionMaster.setQueueFromArray(queue);
+      docClonerAssertionMaster.assertQueue({ master });
+    }
+  );
+
+  test.each(docClonerCollection)(
+    "should clone the JSDOM document",
+    async (master) => {
+      const { index } = master;
+      const { doc } = JSDOMDocs[index];
+      docClonerAssertionMaster.master = master;
+      cloneDoc(doc, {
+        ...makeDefaultGlobal(),
+        isBrowser: false,
+        counter: { orderID: -1 },
+        event: new EventBus(),
+        eventUUID: "",
+      });
+
       docClonerAssertionMaster.assertQueue({ master });
     }
   );

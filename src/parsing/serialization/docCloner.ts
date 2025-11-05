@@ -75,7 +75,7 @@ let cloneStyleRule = (
 ): StyleRuleClone | null => {
   const { event } = ctx;
   const styleRuleClone = new StyleRuleClone(ctx);
-  styleRuleClone.selector = styleRule.selectorText;
+  styleRuleClone.selector = normalizeSelector(styleRule.selectorText);
   let propsState: ClonePropsState = {
     style: {},
     specialProps: {},
@@ -131,7 +131,7 @@ let cloneProp = (
           const explicitProps = innerMap.get(i)!;
           for (let j = 0; j < explicitProps.length; j++) {
             const explicitProp = explicitProps[j];
-            propsState.style[explicitProp] = value;
+            propsState.style[explicitProp] = normalizeZero(value);
           }
         }
 
@@ -140,7 +140,7 @@ let cloneProp = (
       return propsState;
     }
     propsState = { ...propsState, style: { ...propsState.style } };
-    propsState.style[property] = value;
+    propsState.style[property] = normalizeZero(value);
     if (dev) event?.emit("fluidPropCloned", ctx, { prop: property, value });
   } else if (SPECIAL_PROPERTIES.has(property)) {
     propsState = {
@@ -153,6 +153,21 @@ let cloneProp = (
   if (dev) event?.emit("propOmitted", ctx, { why: "notFluidOrSpecial" });
   return propsState;
 };
+
+function normalizeZero(input: string): string {
+  return input.replace(
+    /(?<![\d.])0+(?:\.0+)?(?![\d.])(?!(px|em|rem|%|vh|vw|vmin|vmax|ch|ex|cm|mm|in|pt|pc)\b)/g,
+    "0px"
+  );
+}
+
+function normalizeSelector(selector: string): string {
+  return selector
+    .replace(/\*::(before|after)\b/g, "::$1")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 let cloneMediaRule = (
   mediaRule: CSSMediaRule,
