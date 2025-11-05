@@ -4,6 +4,7 @@ if (process.env.NODE_ENV === "test") {
 }
 import AssertionMaster, {
   filterEventsByPayload,
+  getEventByUUID,
   withEventBus,
   withEventNames,
   withEvents,
@@ -21,6 +22,7 @@ import {
   cloneMediaRule,
   cloneProp,
   cloneFluidProp,
+  cloneSpecialProp,
 } from "../../../src/parsing/serialization/docCloner";
 import * as controller from "./docClonerController";
 import type { ExpectStatic } from "vitest";
@@ -146,7 +148,7 @@ const clonePropAssertionChain: AssertionChainForFunc<
   typeof cloneProp
 > = {
   "should clone prop": (state, args, result) =>
-    withEvents(args, (eventBus) => {
+    withEvents(args, (eventBus, eventUUID) => {
       const [styleRule, property, ctx] = args;
       const { propsState } = ctx;
       const masterRule = controller.findStyleRule(
@@ -155,6 +157,12 @@ const clonePropAssertionChain: AssertionChainForFunc<
       );
       const fluidPropEvents = filterEventsByPayload(eventBus, "*", {
         eventType: "fluidProp",
+        property,
+        styleRule,
+      });
+
+      const specialPropEvents = filterEventsByPayload(eventBus, "*", {
+        eventType: "specialProp",
         property,
         styleRule,
       });
@@ -176,6 +184,16 @@ const clonePropAssertionChain: AssertionChainForFunc<
         } else if (event.name === "propOmitted") {
           FLUID_PROP_EVENTS_ROUTER.propOmitted(result, propsState);
         }
+      } else if (specialPropEvents.length === 1) {
+        const event = specialPropEvents[0];
+        if (event.name === "specialPropCloned") {
+          expect(result.specialProps[property]).toBe(
+            masterRule!.specialProps[property]
+          );
+        }
+      } else {
+        if (!getEventByUUID(eventBus, "propOmitted", eventUUID))
+          throw Error("Unexpected event");
       }
     }),
 };
@@ -224,6 +242,27 @@ const cloneFluidPropAssertionChain: AssertionChainForFunc<
     }),
 };
 
+const cloneSpecialPropAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneSpecialProp
+> = {
+  "should clone special prop": (state, args, result) =>
+    withEventNames(args, ["specialPropCloned"], (events) => {
+      const [property] = args;
+      const masterRule = controller.findStyleRule(
+        state.master!.docClone,
+        state.styleRuleIndex - 1
+      );
+      if (events.specialPropCloned) {
+        expect(result.specialProps[property]).toBe(
+          masterRule!.specialProps[property]
+        );
+      } else {
+        throw Error("unknown event");
+      }
+    }),
+};
+
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   filterAccessibleSheets: filterAccessibleSheetsAssertionChain,
@@ -234,6 +273,7 @@ const defaultAssertions = {
   cloneMediaRule: cloneMediaRuleAssertionChain,
   cloneProp: clonePropAssertionChain,
   cloneFluidProp: cloneFluidPropAssertionChain,
+  cloneSpecialProp: cloneSpecialPropAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -318,6 +358,13 @@ class DocClonerAssertionMaster extends AssertionMaster<
       }/mediaWidth:${args[2].mediaWidth || "baseline"}`;
     },
   });
+  cloneSpecialProp = this.wrapFn(cloneSpecialProp, "cloneSpecialProp", {
+    getId: (_state, args) => {
+      return `property:${args[0]}/styleRule:${
+        args[2].styleRule.selectorText
+      }/mediaWidth:${args[2].mediaWidth || "baseline"}`;
+    },
+  });
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -332,7 +379,8 @@ function wrapAll() {
     docClonerAssertionMaster.cloneStyleRule,
     docClonerAssertionMaster.cloneMediaRule,
     docClonerAssertionMaster.cloneProp,
-    docClonerAssertionMaster.cloneFluidProp
+    docClonerAssertionMaster.cloneFluidProp,
+    docClonerAssertionMaster.cloneSpecialProp
   );
 }
 

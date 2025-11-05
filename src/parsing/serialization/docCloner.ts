@@ -13,6 +13,7 @@ import type {
   ClonePropContext,
   ClonePropsState,
   CloneRulesContext,
+  CloneSpecialPropContext,
 } from "./docCloner.types";
 import {
   FLUID_PROPERTY_NAMES,
@@ -119,12 +120,7 @@ let cloneProp = (
   if (FLUID_PROPERTY_NAMES.has(property)) {
     propsState = cloneFluidProp(property, value, { ...ctx, styleRule });
   } else if (SPECIAL_PROPERTIES.has(property)) {
-    propsState = {
-      ...propsState,
-      specialProps: { ...propsState.specialProps },
-    };
-    propsState.specialProps[property] = value;
-    if (dev) event?.emit("specialPropCloned", ctx, { prop: property, value });
+    propsState = cloneSpecialProp(property, value, { ...ctx, styleRule });
   }
   if (dev) event?.emit("propOmitted", ctx, { why: "notFluidOrSpecial" });
   return propsState;
@@ -167,6 +163,27 @@ let cloneFluidProp = (
   propsState = { ...propsState, style: { ...propsState.style } };
   propsState.style[property] = normalizeZero(value);
   if (dev) event?.emit("fluidPropCloned", ctx, eventKey);
+  return propsState;
+};
+
+let cloneSpecialProp = (
+  property: string,
+  value: string,
+  ctx: CloneSpecialPropContext
+): ClonePropsState => {
+  const { event, styleRule } = ctx;
+  let { propsState } = ctx;
+  propsState = {
+    ...propsState,
+    specialProps: { ...propsState.specialProps },
+  };
+  propsState.specialProps[property] = value;
+  if (dev)
+    event?.emit("specialPropCloned", ctx, {
+      property,
+      styleRule,
+      eventType: "specialProp",
+    });
   return propsState;
 };
 function normalizeZero(input: string): string {
@@ -237,7 +254,8 @@ function wrap(
   cloneStyleRuleWrapped: typeof cloneStyleRule,
   cloneMediaRuleWrapped: typeof cloneMediaRule,
   clonePropWrapped: typeof cloneProp,
-  cloneFluidPropWrapped: typeof cloneFluidProp
+  cloneFluidPropWrapped: typeof cloneFluidProp,
+  cloneSpecialPropWrapped: typeof cloneSpecialProp
 ) {
   cloneDoc = cloneDocWrapped;
   filterAccessibleSheets = filterAccessibleSheetsWrapped;
@@ -248,6 +266,7 @@ function wrap(
   cloneMediaRule = cloneMediaRuleWrapped;
   cloneProp = clonePropWrapped;
   cloneFluidProp = cloneFluidPropWrapped;
+  cloneSpecialProp = cloneSpecialPropWrapped;
 }
 
 export {
@@ -261,4 +280,5 @@ export {
   cloneMediaRule,
   cloneProp,
   cloneFluidProp,
+  cloneSpecialProp,
 };

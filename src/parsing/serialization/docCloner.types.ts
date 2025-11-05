@@ -19,6 +19,10 @@ type CloneFluidPropContext = ClonePropContext & {
   styleRule: CSSStyleRule;
 };
 
+type CloneSpecialPropContext = ClonePropContext & {
+  styleRule: CSSStyleRule;
+};
+
 type ClonePropsState = {
   style: Record<string, string>;
   specialProps: Record<string, string>;
@@ -30,4 +34,5 @@ export type {
   ClonePropsState,
   ClonePropContext,
   CloneFluidPropContext,
+  CloneSpecialPropContext,
 };
