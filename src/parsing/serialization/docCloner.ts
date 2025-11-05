@@ -37,70 +37,73 @@ let cloneStyleSheet: (
   return sheetClone;
 };
 
-function cloneRules(rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] {
-  const { isBrowser } = ctx;
+let cloneRules: (rules: CSSRuleList, ctx: CloneDocContext) => RuleClone[] = (
+  rules: CSSRuleList,
+  ctx: CloneDocContext
+): RuleClone[] => {
   return Array.from(rules)
-    .map((rule) => {
-      if (rule.type === STYLE_RULE_TYPE) {
-        const styleRule = rule as CSSStyleRule;
-        const styleRuleClone = new StyleRuleClone(ctx);
-        styleRuleClone.selector = styleRule.selectorText;
-        const style: Record<string, string> = {};
-        const specialProps: Record<string, string> = {};
-
-        for (let i = 0; i < styleRule.style.length; i++) {
-          const property = styleRule.style[i];
-          const value = styleRule.style.getPropertyValue(property);
-
-          if (FLUID_PROPERTY_NAMES.has(property)) {
-            const shorthandMap = SHORTHAND_PROPERTIES[property];
-            if (shorthandMap) {
-              if (isBrowser) {
-                continue; //Browser expands shorthands
-              } else {
-                //TODO: expand shorthands
-              }
-              continue;
-            }
-            style[property] = value;
-          } else if (SPECIAL_PROPERTIES.has(property)) {
-            specialProps[property] = value;
-          }
-        }
-
-        if (
-          Object.keys(style).length <= 0 &&
-          Object.keys(specialProps).length <= 0
-        )
-          return null;
-
-        styleRuleClone.style = style;
-        styleRuleClone.specialProps = specialProps;
-
-        ctx.counter.orderID++;
-        styleRuleClone.orderID = ctx.counter.orderID;
-        return styleRuleClone;
-      } else if (rule.type === MEDIA_RULE_TYPE) {
-        const mediaRule = rule as CSSMediaRule;
-        const match = mediaRule.media.mediaText.match(
-          /\(min-width:\s*(\d+)px\)/
-        );
-
-        if (match) {
-          const mediaRuleClone = new MediaRuleClone(ctx);
-          mediaRuleClone.minWidth = Number(match[1]);
-          mediaRuleClone.rules = cloneRules(
-            mediaRule.cssRules,
-            ctx
-          ) as StyleRuleClone[];
-          return mediaRuleClone;
-        }
-        return null;
-      }
-      return null;
-    })
+    .map((rule) => cloneRule(rule, ctx))
     .filter((rule) => rule !== null);
-}
+};
+
+const cloneRule: (rule: CSSRule, ctx: CloneDocContext) => RuleClone | null = (
+  rule: CSSRule,
+  ctx: CloneDocContext
+): RuleClone | null => {
+  const { isBrowser } = ctx;
+  if (rule.type === STYLE_RULE_TYPE) {
+    const styleRule = rule as CSSStyleRule;
+    const styleRuleClone = new StyleRuleClone(ctx);
+    styleRuleClone.selector = styleRule.selectorText;
+    const style: Record<string, string> = {};
+    const specialProps: Record<string, string> = {};
+
+    for (let i = 0; i < styleRule.style.length; i++) {
+      const property = styleRule.style[i];
+      const value = styleRule.style.getPropertyValue(property);
+
+      if (FLUID_PROPERTY_NAMES.has(property)) {
+        const shorthandMap = SHORTHAND_PROPERTIES[property];
+        if (shorthandMap) {
+          if (isBrowser) {
+            continue; //Browser expands shorthands
+          } else {
+            //TODO: expand shorthands
+          }
+          continue;
+        }
+        style[property] = value;
+      } else if (SPECIAL_PROPERTIES.has(property)) {
+        specialProps[property] = value;
+      }
+    }
+
+    if (Object.keys(style).length <= 0 && Object.keys(specialProps).length <= 0)
+      return null;
+
+    styleRuleClone.style = style;
+    styleRuleClone.specialProps = specialProps;
+
+    ctx.counter.orderID++;
+    styleRuleClone.orderID = ctx.counter.orderID;
+    return styleRuleClone;
+  } else if (rule.type === MEDIA_RULE_TYPE) {
+    const mediaRule = rule as CSSMediaRule;
+    const match = mediaRule.media.mediaText.match(/\(min-width:\s*(\d+)px\)/);
+
+    if (match) {
+      const mediaRuleClone = new MediaRuleClone(ctx);
+      mediaRuleClone.minWidth = Number(match[1]);
+      mediaRuleClone.rules = cloneRules(
+        mediaRule.cssRules,
+        ctx
+      ) as StyleRuleClone[];
+      return mediaRuleClone;
+    }
+    return null;
+  }
+  return null;
+};
 
 let filterAccessibleSheets: (sheets: StyleSheetList) => CSSStyleSheet[] = (
   sheets: StyleSheetList
@@ -119,11 +122,20 @@ let filterAccessibleSheets: (sheets: StyleSheetList) => CSSStyleSheet[] = (
 function wrap(
   cloneDocWrapped: typeof cloneDoc,
   filterAccessibleSheetsWrapped: typeof filterAccessibleSheets,
-  cloneStyleSheetWrapped: typeof cloneStyleSheet
+  cloneStyleSheetWrapped: typeof cloneStyleSheet,
+  cloneRulesWrapped: typeof cloneRules
 ) {
   cloneDoc = cloneDocWrapped;
   filterAccessibleSheets = filterAccessibleSheetsWrapped;
   cloneStyleSheet = cloneStyleSheetWrapped;
+  cloneRules = cloneRulesWrapped;
 }
 
-export { cloneDoc, cloneRules, wrap, filterAccessibleSheets, cloneStyleSheet };
+export {
+  cloneDoc,
+  cloneRules,
+  wrap,
+  filterAccessibleSheets,
+  cloneStyleSheet,
+  cloneRule,
+};

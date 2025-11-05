@@ -6,10 +6,12 @@ import AssertionMaster, { type AssertionChainForFunc } from "gold-sight";
 import type { DocClonerMaster, GoldSightState } from "./index.types";
 import {
   cloneDoc,
+  cloneRules,
   cloneStyleSheet,
   filterAccessibleSheets,
   wrap,
 } from "../../../src/parsing/serialization/docCloner";
+import * as controller from "./docClonerController";
 import type { ExpectStatic } from "vitest";
 
 const cloneDocAssertionChain: AssertionChainForFunc<
@@ -38,10 +40,23 @@ const cloneStyleSheetAssertionChain: AssertionChainForFunc<
     expect(result).toEqual(state.master!.docClone.sheets[state.sheetIndex]);
   },
 };
+
+const cloneRulesAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneRules
+> = {
+  "should clone rules": (state, _args, result) => {
+    expect(result).toEqual(
+      controller.findRules(state.master!.docClone, state.rulesIndex)
+    );
+  },
+};
+
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   filterAccessibleSheets: filterAccessibleSheetsAssertionChain,
   cloneStyleSheet: cloneStyleSheetAssertionChain,
+  cloneRules: cloneRulesAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -55,6 +70,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
   newState(): GoldSightState {
     return {
       sheetIndex: 0,
+      rulesIndex: 0,
     };
   }
 
@@ -71,6 +87,14 @@ class DocClonerAssertionMaster extends AssertionMaster<
       state.sheetIndex++;
     },
   });
+  cloneRules = this.wrapFn(cloneRules, "cloneRules", {
+    getId: (state) => {
+      return `rulesIndex:${state.rulesIndex}`;
+    },
+    post: (state) => {
+      state.rulesIndex++;
+    },
+  });
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -79,7 +103,8 @@ function wrapAll() {
   wrap(
     docClonerAssertionMaster.cloneDoc,
     docClonerAssertionMaster.filterAccessibleSheets,
-    docClonerAssertionMaster.cloneStyleSheet
+    docClonerAssertionMaster.cloneStyleSheet,
+    docClonerAssertionMaster.cloneRules
   );
 }
 
