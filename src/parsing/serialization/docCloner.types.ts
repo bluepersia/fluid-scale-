@@ -1,9 +1,10 @@
-import type { Global } from "../../index.types";
+import type { EventContext, Global } from "../../index.types";
 
-type CloneDocContext = Global & {
-  counter: {
-    orderID: number;
+type CloneDocContext = Global &
+  EventContext & {
+    counter: {
+      orderID: number;
+    };
   };
-};
 
 export type { CloneDocContext };

@@ -46,11 +46,11 @@ let cloneRules: (rules: CSSRuleList, ctx: CloneDocContext) => RuleClone[] = (
     .filter((rule) => rule !== null);
 };
 
-const cloneRule: (rule: CSSRule, ctx: CloneDocContext) => RuleClone | null = (
+let cloneRule: (rule: CSSRule, ctx: CloneDocContext) => RuleClone | null = (
   rule: CSSRule,
   ctx: CloneDocContext
 ): RuleClone | null => {
-  const { isBrowser } = ctx;
+  const { isBrowser, event } = ctx;
   if (rule.type === STYLE_RULE_TYPE) {
     const styleRule = rule as CSSStyleRule;
     const styleRuleClone = new StyleRuleClone(ctx);
@@ -86,6 +86,7 @@ const cloneRule: (rule: CSSRule, ctx: CloneDocContext) => RuleClone | null = (
 
     ctx.counter.orderID++;
     styleRuleClone.orderID = ctx.counter.orderID;
+    event?.emit("ruleCloned", ctx, { rule: styleRuleClone });
     return styleRuleClone;
   } else if (rule.type === MEDIA_RULE_TYPE) {
     const mediaRule = rule as CSSMediaRule;
@@ -98,10 +99,12 @@ const cloneRule: (rule: CSSRule, ctx: CloneDocContext) => RuleClone | null = (
         mediaRule.cssRules,
         ctx
       ) as StyleRuleClone[];
+      event?.emit("ruleCloned", ctx, { rule: mediaRuleClone });
       return mediaRuleClone;
     }
     return null;
   }
+  event?.emit("ruleOmitted", ctx, { why: "rule type not supported" });
   return null;
 };
 
@@ -123,12 +126,14 @@ function wrap(
   cloneDocWrapped: typeof cloneDoc,
   filterAccessibleSheetsWrapped: typeof filterAccessibleSheets,
   cloneStyleSheetWrapped: typeof cloneStyleSheet,
-  cloneRulesWrapped: typeof cloneRules
+  cloneRulesWrapped: typeof cloneRules,
+  cloneRuleWrapped: typeof cloneRule
 ) {
   cloneDoc = cloneDocWrapped;
   filterAccessibleSheets = filterAccessibleSheetsWrapped;
   cloneStyleSheet = cloneStyleSheetWrapped;
   cloneRules = cloneRulesWrapped;
+  cloneRule = cloneRuleWrapped;
 }
 
 export {

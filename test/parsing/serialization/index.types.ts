@@ -5,6 +5,7 @@ type GoldSightState = {
   master?: DocClonerMaster;
   sheetIndex: number;
   rulesIndex: number;
+  ruleIndex: number;
 };
 
 type DocClonerMaster = Master & {
