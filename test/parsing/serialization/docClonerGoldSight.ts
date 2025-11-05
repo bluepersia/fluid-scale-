@@ -122,17 +122,56 @@ const clonePropAssertionChain: AssertionChainForFunc<
   typeof cloneProp
 > = {
   "should clone prop": (state, args, result) =>
+    withEventNames(args, ["specialPropCloned", "propOmitted"], (events) => {
+      return;
+      const [, property, ctx] = args;
+      const { propsState } = ctx;
+      const masterRule = controller.findStyleRule(
+        state.master!.docClone,
+        state.styleRuleIndex - 1
+      );
+      if (events.fluidPropCloned) {
+        expect(result.style[property]).toBe(masterRule!.style[property]);
+      } else if (events.specialPropCloned) {
+        expect(result.specialProps[property]).toBe(
+          masterRule!.specialProps[property]
+        );
+      } else if (events.expandedShorthand) {
+        for (const explicitProp of EXPLICIT_PROPS_FOR_SHORTHAND.get(
+          property
+        )!) {
+          expect(result.style[explicitProp]).toBe(
+            masterRule!.style[explicitProp]
+          );
+        }
+      } else if (events.propOmitted) {
+        expect(result).toBe(propsState);
+      } else {
+        throw Error("unknown event");
+      }
+    }),
+};
+
+function assertExpandedShorthand(
+  result: Record<string, string>,
+  masterStyle: Record<string, string>,
+  property: string
+) {
+  for (const explicitProp of EXPLICIT_PROPS_FOR_SHORTHAND.get(property)!) {
+    expect(result[explicitProp]).toBe(masterStyle[explicitProp]);
+  }
+}
+
+const cloneFluidPropAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneFluidProp
+> = {
+  "should clone fluid prop": (state, args, result) =>
     withEventNames(
       args,
-      [
-        "fluidPropCloned",
-        "specialPropCloned",
-        "propOmitted",
-        "expandedShorthand",
-      ],
+      ["fluidPropCloned", "expandedShorthand", "propOmitted"],
       (events) => {
-        return;
-        const [, property, ctx] = args;
+        const [property, , ctx] = args;
         const { propsState } = ctx;
         const masterRule = controller.findStyleRule(
           state.master!.docClone,
@@ -140,31 +179,13 @@ const clonePropAssertionChain: AssertionChainForFunc<
         );
         if (events.fluidPropCloned) {
           expect(result.style[property]).toBe(masterRule!.style[property]);
-        } else if (events.specialPropCloned) {
-          expect(result.specialProps[property]).toBe(
-            masterRule!.specialProps[property]
-          );
         } else if (events.expandedShorthand) {
-          for (const explicitProp of EXPLICIT_PROPS_FOR_SHORTHAND.get(
-            property
-          )!) {
-            expect(result.style[explicitProp]).toBe(
-              masterRule!.style[explicitProp]
-            );
-          }
+          assertExpandedShorthand(result.style, masterRule!.style, property);
         } else if (events.propOmitted) {
           expect(result).toBe(propsState);
-        } else {
-          throw Error("unknown event");
         }
       }
     ),
-};
-
-const cloneFluidPropAssertionChain: AssertionChainForFunc<
-  GoldSightState,
-  typeof cloneFluidProp
-> = {
   "should emit one event": (_state, args) =>
     withEventBus(args, (eventBus) => {
       const [property, , ctx] = args;
