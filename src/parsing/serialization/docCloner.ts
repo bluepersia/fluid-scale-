@@ -1,4 +1,5 @@
 import { MEDIA_RULE_TYPE, STYLE_RULE_TYPE } from "../../index.types";
+import { splitBySpaces } from "../../utils/stringHelpers";
 import {
   DocClone,
   MediaRuleClone,
@@ -121,7 +122,19 @@ let cloneProp = (
         if (dev)
           event?.emit("propOmitted", ctx, { why: "browserHandlesShorthands" });
       } else {
-        //TODO: expand shorthands
+        const values = splitBySpaces(value);
+        const valuesCount = values.length;
+        const innerMap = shorthandMap.get(valuesCount)!;
+        propsState = { ...propsState, style: { ...propsState.style } };
+        for (let i = 0; i < valuesCount; i++) {
+          const value = values[i];
+          const explicitProps = innerMap.get(i)!;
+          for (let j = 0; j < explicitProps.length; j++) {
+            const explicitProp = explicitProps[j];
+            propsState.style[explicitProp] = value;
+          }
+        }
+
         event?.emit("expandedShorthand", ctx);
       }
       return propsState;
