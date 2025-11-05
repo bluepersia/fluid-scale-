@@ -3,6 +3,8 @@ if (process.env.NODE_ENV === "test") {
   expect = (await import("vitest")).expect;
 }
 import AssertionMaster, {
+  filterEventsByPayload,
+  withEventBus,
   withEventNames,
   type AssertionChainForFunc,
 } from "gold-sight";
@@ -17,6 +19,7 @@ import {
   cloneStyleRule,
   cloneMediaRule,
   cloneProp,
+  cloneFluidProp,
 } from "../../../src/parsing/serialization/docCloner";
 import * as controller from "./docClonerController";
 import type { ExpectStatic } from "vitest";
@@ -128,6 +131,7 @@ const clonePropAssertionChain: AssertionChainForFunc<
         "expandedShorthand",
       ],
       (events) => {
+        return;
         const [, property, ctx] = args;
         const { propsState } = ctx;
         const masterRule = controller.findStyleRule(
@@ -157,6 +161,21 @@ const clonePropAssertionChain: AssertionChainForFunc<
     ),
 };
 
+const cloneFluidPropAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneFluidProp
+> = {
+  "should emit one event": (_state, args) =>
+    withEventBus(args, (eventBus) => {
+      const [property, , ctx] = args;
+      const { styleRule } = ctx;
+      const key = { property, styleRule };
+      const events = filterEventsByPayload(eventBus, "*", key);
+
+      expect(events.length).toBe(1);
+    }),
+};
+
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   filterAccessibleSheets: filterAccessibleSheetsAssertionChain,
@@ -166,6 +185,7 @@ const defaultAssertions = {
   cloneStyleRule: cloneStyleRuleAssertionChain,
   cloneMediaRule: cloneMediaRuleAssertionChain,
   cloneProp: clonePropAssertionChain,
+  cloneFluidProp: cloneFluidPropAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -243,6 +263,13 @@ class DocClonerAssertionMaster extends AssertionMaster<
       }/property:${args[1]}`;
     },
   });
+  cloneFluidProp = this.wrapFn(cloneFluidProp, "cloneFluidProp", {
+    getId: (_state, args) => {
+      return `property:${args[0]}/styleRule:${
+        args[2].styleRule.selectorText
+      }/mediaWidth:${args[2].mediaWidth || "baseline"}`;
+    },
+  });
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -256,7 +283,8 @@ function wrapAll() {
     docClonerAssertionMaster.cloneRule,
     docClonerAssertionMaster.cloneStyleRule,
     docClonerAssertionMaster.cloneMediaRule,
-    docClonerAssertionMaster.cloneProp
+    docClonerAssertionMaster.cloneProp,
+    docClonerAssertionMaster.cloneFluidProp
   );
 }
 

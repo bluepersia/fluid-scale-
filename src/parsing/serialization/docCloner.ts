@@ -9,6 +9,7 @@ import {
 } from "./docClone";
 import type {
   CloneDocContext,
+  CloneFluidPropContext,
   ClonePropContext,
   ClonePropsState,
   CloneRulesContext,
@@ -111,37 +112,12 @@ let cloneProp = (
   property: string,
   ctx: ClonePropContext
 ) => {
-  const { isBrowser, event } = ctx;
+  const { event } = ctx;
   let { propsState } = ctx;
   const value = styleRule.style.getPropertyValue(property);
 
   if (FLUID_PROPERTY_NAMES.has(property)) {
-    const shorthandMap = SHORTHAND_PROPERTIES[property];
-    if (shorthandMap) {
-      if (isBrowser) {
-        if (dev)
-          event?.emit("propOmitted", ctx, { why: "browserHandlesShorthands" });
-      } else {
-        const values = splitBySpaces(value);
-        const valuesCount = values.length;
-        const innerMap = shorthandMap.get(valuesCount)!;
-        propsState = { ...propsState, style: { ...propsState.style } };
-        for (let i = 0; i < valuesCount; i++) {
-          const value = values[i];
-          const explicitProps = innerMap.get(i)!;
-          for (let j = 0; j < explicitProps.length; j++) {
-            const explicitProp = explicitProps[j];
-            propsState.style[explicitProp] = normalizeZero(value);
-          }
-        }
-
-        event?.emit("expandedShorthand", ctx);
-      }
-      return propsState;
-    }
-    propsState = { ...propsState, style: { ...propsState.style } };
-    propsState.style[property] = normalizeZero(value);
-    if (dev) event?.emit("fluidPropCloned", ctx, { prop: property, value });
+    propsState = cloneFluidProp(property, value, { ...ctx, styleRule });
   } else if (SPECIAL_PROPERTIES.has(property)) {
     propsState = {
       ...propsState,
@@ -154,6 +130,45 @@ let cloneProp = (
   return propsState;
 };
 
+let cloneFluidProp = (
+  property: string,
+  value: string,
+  ctx: CloneFluidPropContext
+): ClonePropsState => {
+  const { isBrowser, event, styleRule } = ctx;
+  let { propsState } = ctx;
+  const eventKey = { property, styleRule };
+  const shorthandMap = SHORTHAND_PROPERTIES[property];
+  if (shorthandMap) {
+    if (isBrowser) {
+      if (dev)
+        event?.emit("propOmitted", ctx, {
+          why: "browserHandlesShorthands",
+          ...eventKey,
+        });
+    } else {
+      const values = splitBySpaces(value);
+      const valuesCount = values.length;
+      const innerMap = shorthandMap.get(valuesCount)!;
+      propsState = { ...propsState, style: { ...propsState.style } };
+      for (let i = 0; i < valuesCount; i++) {
+        const value = values[i];
+        const explicitProps = innerMap.get(i)!;
+        for (let j = 0; j < explicitProps.length; j++) {
+          const explicitProp = explicitProps[j];
+          propsState.style[explicitProp] = normalizeZero(value);
+        }
+      }
+
+      event?.emit("expandedShorthand", ctx, eventKey);
+    }
+    return propsState;
+  }
+  propsState = { ...propsState, style: { ...propsState.style } };
+  propsState.style[property] = normalizeZero(value);
+  if (dev) event?.emit("fluidPropCloned", ctx, eventKey);
+  return propsState;
+};
 function normalizeZero(input: string): string {
   return input.replace(
     /(?<![\d.])0+(?:\.0+)?(?![\d.])(?!(px|em|rem|%|vh|vw|vmin|vmax|ch|ex|cm|mm|in|pt|pc)\b)/g,
@@ -221,7 +236,8 @@ function wrap(
   cloneRuleWrapped: typeof cloneRule,
   cloneStyleRuleWrapped: typeof cloneStyleRule,
   cloneMediaRuleWrapped: typeof cloneMediaRule,
-  clonePropWrapped: typeof cloneProp
+  clonePropWrapped: typeof cloneProp,
+  cloneFluidPropWrapped: typeof cloneFluidProp
 ) {
   cloneDoc = cloneDocWrapped;
   filterAccessibleSheets = filterAccessibleSheetsWrapped;
@@ -231,6 +247,7 @@ function wrap(
   cloneStyleRule = cloneStyleRuleWrapped;
   cloneMediaRule = cloneMediaRuleWrapped;
   cloneProp = clonePropWrapped;
+  cloneFluidProp = cloneFluidPropWrapped;
 }
 
 export {
@@ -243,4 +260,5 @@ export {
   cloneStyleRule,
   cloneMediaRule,
   cloneProp,
+  cloneFluidProp,
 };
