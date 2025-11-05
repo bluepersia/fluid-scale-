@@ -7,4 +7,8 @@ type CloneDocContext = Global &
     };
   };
 
-export type { CloneDocContext };
+type CloneRulesContext = CloneDocContext & {
+  mediaWidth?: number;
+};
+
+export type { CloneDocContext, CloneRulesContext };

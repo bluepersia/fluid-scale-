@@ -6,6 +6,7 @@ type GoldSightState = {
   sheetIndex: number;
   rulesIndex: number;
   ruleIndex: number;
+  styleRuleIndex: number;
 };
 
 type DocClonerMaster = Master & {

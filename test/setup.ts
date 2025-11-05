@@ -94,6 +94,7 @@ async function onLoadBrowserPage(page: Page, blueprint?: PlaywrightBlueprint) {
   if (!useServer) await page.addScriptTag({ path: clonerBundlePath });
   await page.waitForFunction(() => (window as any).FluidScale !== undefined);
   await page.evaluate(() => {
+    (window as any).dev = true;
     // @ts-expect-error global from IIFE bundle
     window.cloneDoc = window.FluidScale.cloneDoc;
 

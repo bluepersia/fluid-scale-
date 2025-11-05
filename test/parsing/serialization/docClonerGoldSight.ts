@@ -14,6 +14,7 @@ import {
   filterAccessibleSheets,
   cloneRule,
   wrap,
+  cloneStyleRule,
 } from "../../../src/parsing/serialization/docCloner";
 import * as controller from "./docClonerController";
 import type { ExpectStatic } from "vitest";
@@ -68,16 +69,36 @@ const cloneRuleAssertionChain: AssertionChainForFunc<
         );
       } else if (events.ruleOmitted) {
         expect(result).toBeNull();
+      } else {
+        throw Error("unknown event");
       }
     }),
 };
 
+const cloneStyleRuleAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneStyleRule
+> = {
+  "should clone style rule": (state, args, result) =>
+    withEventNames(args, ["styleRuleCloned", "styleRuleOmitted"], (events) => {
+      if (events.styleRuleCloned) {
+        expect(result).toEqual(
+          controller.findStyleRule(state.master!.docClone, state.styleRuleIndex)
+        );
+      } else if (events.styleRuleOmitted) {
+        expect(result).toBeNull();
+      } else {
+        throw Error("unknown event");
+      }
+    }),
+};
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   filterAccessibleSheets: filterAccessibleSheetsAssertionChain,
   cloneStyleSheet: cloneStyleSheetAssertionChain,
   cloneRules: cloneRulesAssertionChain,
   cloneRule: cloneRuleAssertionChain,
+  cloneStyleRule: cloneStyleRuleAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -93,6 +114,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
       sheetIndex: 0,
       rulesIndex: 0,
       ruleIndex: 0,
+      styleRuleIndex: 0,
     };
   }
 
@@ -126,6 +148,17 @@ class DocClonerAssertionMaster extends AssertionMaster<
         if (events.ruleCloned) state.ruleIndex++;
       }),
   });
+  cloneStyleRule = this.wrapFn(cloneStyleRule, "cloneStyleRule", {
+    getId: (state, args) => {
+      return `styleRuleIndex:${state.styleRuleIndex}/selector:${
+        args[0].selectorText || ""
+      }`;
+    },
+    post: (state, args) =>
+      withEventNames(args, ["styleRuleCloned"], (events) => {
+        if (events.styleRuleCloned) state.styleRuleIndex++;
+      }),
+  });
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -136,7 +169,8 @@ function wrapAll() {
     docClonerAssertionMaster.filterAccessibleSheets,
     docClonerAssertionMaster.cloneStyleSheet,
     docClonerAssertionMaster.cloneRules,
-    docClonerAssertionMaster.cloneRule
+    docClonerAssertionMaster.cloneRule,
+    docClonerAssertionMaster.cloneStyleRule
   );
 }
 

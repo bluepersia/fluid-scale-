@@ -6,17 +6,14 @@ import {
   SheetClone,
   StyleRuleClone,
 } from "./docClone";
-import type { CloneDocContext } from "./docCloner.types";
+import type { CloneDocContext, CloneRulesContext } from "./docCloner.types";
 import {
   FLUID_PROPERTY_NAMES,
   SHORTHAND_PROPERTIES,
   SPECIAL_PROPERTIES,
 } from "./docClonerConsts";
 
-let cloneDoc: (doc: Document, ctx: CloneDocContext) => DocClone = (
-  doc: Document,
-  ctx: CloneDocContext
-): DocClone => {
+let cloneDoc = (doc: Document, ctx: CloneDocContext): DocClone => {
   const docClone = new DocClone(ctx);
 
   const accessibleSheets = filterAccessibleSheets(doc.styleSheets);
@@ -28,84 +25,103 @@ let cloneDoc: (doc: Document, ctx: CloneDocContext) => DocClone = (
   return docClone;
 };
 
-let cloneStyleSheet: (
+let cloneStyleSheet = (
   sheet: CSSStyleSheet,
   ctx: CloneDocContext
-) => SheetClone = (sheet: CSSStyleSheet, ctx: CloneDocContext): SheetClone => {
+): SheetClone => {
   const sheetClone = new SheetClone(ctx);
   sheetClone.rules = cloneRules(sheet.cssRules, ctx);
   return sheetClone;
 };
 
-let cloneRules: (rules: CSSRuleList, ctx: CloneDocContext) => RuleClone[] = (
-  rules: CSSRuleList,
-  ctx: CloneDocContext
-): RuleClone[] => {
+let cloneRules = (rules: CSSRuleList, ctx: CloneDocContext): RuleClone[] => {
   return Array.from(rules)
     .map((rule) => cloneRule(rule, ctx))
     .filter((rule) => rule !== null);
 };
 
-let cloneRule: (rule: CSSRule, ctx: CloneDocContext) => RuleClone | null = (
-  rule: CSSRule,
-  ctx: CloneDocContext
-): RuleClone | null => {
-  const { isBrowser, event } = ctx;
+let cloneRule = (rule: CSSRule, ctx: CloneDocContext): RuleClone | null => {
+  const { event } = ctx;
   if (rule.type === STYLE_RULE_TYPE) {
-    const styleRule = rule as CSSStyleRule;
-    const styleRuleClone = new StyleRuleClone(ctx);
-    styleRuleClone.selector = styleRule.selectorText;
-    const style: Record<string, string> = {};
-    const specialProps: Record<string, string> = {};
-
-    for (let i = 0; i < styleRule.style.length; i++) {
-      const property = styleRule.style[i];
-      const value = styleRule.style.getPropertyValue(property);
-
-      if (FLUID_PROPERTY_NAMES.has(property)) {
-        const shorthandMap = SHORTHAND_PROPERTIES[property];
-        if (shorthandMap) {
-          if (isBrowser) {
-            continue; //Browser expands shorthands
-          } else {
-            //TODO: expand shorthands
-          }
-          continue;
-        }
-        style[property] = value;
-      } else if (SPECIAL_PROPERTIES.has(property)) {
-        specialProps[property] = value;
-      }
+    const result = cloneStyleRule(rule as CSSStyleRule, ctx);
+    if (dev) {
+      if (result) event?.emit("ruleCloned", ctx, { rule: result });
+      else event?.emit("ruleOmitted", ctx, { why: "nullResult" });
     }
-
-    if (Object.keys(style).length <= 0 && Object.keys(specialProps).length <= 0)
-      return null;
-
-    styleRuleClone.style = style;
-    styleRuleClone.specialProps = specialProps;
-
-    ctx.counter.orderID++;
-    styleRuleClone.orderID = ctx.counter.orderID;
-    event?.emit("ruleCloned", ctx, { rule: styleRuleClone });
-    return styleRuleClone;
+    return result;
   } else if (rule.type === MEDIA_RULE_TYPE) {
     const mediaRule = rule as CSSMediaRule;
     const match = mediaRule.media.mediaText.match(/\(min-width:\s*(\d+)px\)/);
 
     if (match) {
       const mediaRuleClone = new MediaRuleClone(ctx);
-      mediaRuleClone.minWidth = Number(match[1]);
+      const width: number = Number(match[1]);
+      mediaRuleClone.minWidth = width;
+
+      const subCtx: CloneRulesContext = {
+        ...ctx,
+      };
+      if (dev) {
+        event?.emit("ruleCloned", ctx, { rule: mediaRuleClone });
+        subCtx.mediaWidth = width;
+      }
       mediaRuleClone.rules = cloneRules(
         mediaRule.cssRules,
-        ctx
+        subCtx
       ) as StyleRuleClone[];
-      event?.emit("ruleCloned", ctx, { rule: mediaRuleClone });
       return mediaRuleClone;
     }
     return null;
   }
-  event?.emit("ruleOmitted", ctx, { why: "rule type not supported" });
+  if (dev) event?.emit("ruleOmitted", ctx, { why: "rule type not supported" });
   return null;
+};
+
+let cloneStyleRule = (
+  styleRule: CSSStyleRule,
+  ctx: CloneDocContext
+): StyleRuleClone | null => {
+  const { isBrowser, event } = ctx;
+  const styleRuleClone = new StyleRuleClone(ctx);
+  styleRuleClone.selector = styleRule.selectorText;
+  const style: Record<string, string> = {};
+  const specialProps: Record<string, string> = {};
+
+  for (let i = 0; i < styleRule.style.length; i++) {
+    const property = styleRule.style[i];
+    const value = styleRule.style.getPropertyValue(property);
+
+    if (FLUID_PROPERTY_NAMES.has(property)) {
+      const shorthandMap = SHORTHAND_PROPERTIES[property];
+      if (shorthandMap) {
+        if (isBrowser) {
+          continue; //Browser expands shorthands
+        } else {
+          //TODO: expand shorthands
+        }
+        continue;
+      }
+      style[property] = value;
+    } else if (SPECIAL_PROPERTIES.has(property)) {
+      specialProps[property] = value;
+    }
+  }
+
+  if (Object.keys(style).length <= 0 && Object.keys(specialProps).length <= 0) {
+    if (dev)
+      event?.emit("styleRuleOmitted", ctx, {
+        why: "noProps",
+      });
+    return null;
+  }
+
+  styleRuleClone.style = style;
+  styleRuleClone.specialProps = specialProps;
+
+  ctx.counter.orderID++;
+  styleRuleClone.orderID = ctx.counter.orderID;
+  if (dev) event?.emit("styleRuleCloned", ctx, { rule: styleRuleClone });
+  return styleRuleClone;
 };
 
 let filterAccessibleSheets: (sheets: StyleSheetList) => CSSStyleSheet[] = (
@@ -127,13 +143,15 @@ function wrap(
   filterAccessibleSheetsWrapped: typeof filterAccessibleSheets,
   cloneStyleSheetWrapped: typeof cloneStyleSheet,
   cloneRulesWrapped: typeof cloneRules,
-  cloneRuleWrapped: typeof cloneRule
+  cloneRuleWrapped: typeof cloneRule,
+  cloneStyleRuleWrapped: typeof cloneStyleRule
 ) {
   cloneDoc = cloneDocWrapped;
   filterAccessibleSheets = filterAccessibleSheetsWrapped;
   cloneStyleSheet = cloneStyleSheetWrapped;
   cloneRules = cloneRulesWrapped;
   cloneRule = cloneRuleWrapped;
+  cloneStyleRule = cloneStyleRuleWrapped;
 }
 
 export {
@@ -143,4 +161,5 @@ export {
   filterAccessibleSheets,
   cloneStyleSheet,
   cloneRule,
+  cloneStyleRule,
 };
