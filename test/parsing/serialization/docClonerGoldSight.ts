@@ -15,6 +15,7 @@ import {
   cloneRule,
   wrap,
   cloneStyleRule,
+  cloneMediaRule,
 } from "../../../src/parsing/serialization/docCloner";
 import * as controller from "./docClonerController";
 import type { ExpectStatic } from "vitest";
@@ -92,6 +93,24 @@ const cloneStyleRuleAssertionChain: AssertionChainForFunc<
       }
     }),
 };
+
+const cloneMediaRuleAssertionChain: AssertionChainForFunc<
+  GoldSightState,
+  typeof cloneMediaRule
+> = {
+  "should clone media rule": (state, args, result) =>
+    withEventNames(args, ["mediaRuleCloned", "mediaRuleOmitted"], (events) => {
+      if (events.mediaRuleCloned) {
+        expect(result).toEqual(
+          controller.findMediaRule(state.master!.docClone, state.mediaRuleIndex)
+        );
+      } else if (events.mediaRuleOmitted) {
+        expect(result).toBeNull();
+      } else {
+        throw Error("unknown event");
+      }
+    }),
+};
 const defaultAssertions = {
   cloneDoc: cloneDocAssertionChain,
   filterAccessibleSheets: filterAccessibleSheetsAssertionChain,
@@ -99,6 +118,7 @@ const defaultAssertions = {
   cloneRules: cloneRulesAssertionChain,
   cloneRule: cloneRuleAssertionChain,
   cloneStyleRule: cloneStyleRuleAssertionChain,
+  cloneMediaRule: cloneMediaRuleAssertionChain,
 };
 
 class DocClonerAssertionMaster extends AssertionMaster<
@@ -115,6 +135,7 @@ class DocClonerAssertionMaster extends AssertionMaster<
       rulesIndex: 0,
       ruleIndex: 0,
       styleRuleIndex: 0,
+      mediaRuleIndex: 0,
     };
   }
 
@@ -159,6 +180,15 @@ class DocClonerAssertionMaster extends AssertionMaster<
         if (events.styleRuleCloned) state.styleRuleIndex++;
       }),
   });
+  cloneMediaRule = this.wrapFn(cloneMediaRule, "cloneMediaRule", {
+    getId: (state, args) => {
+      return `mediaRuleIndex:${state.mediaRuleIndex}/mediaText:${args[0].media.mediaText}`;
+    },
+    post: (state, args) =>
+      withEventNames(args, ["mediaRuleCloned"], (events) => {
+        if (events.mediaRuleCloned) state.mediaRuleIndex++;
+      }),
+  });
 }
 
 const docClonerAssertionMaster = new DocClonerAssertionMaster();
@@ -170,7 +200,8 @@ function wrapAll() {
     docClonerAssertionMaster.cloneStyleSheet,
     docClonerAssertionMaster.cloneRules,
     docClonerAssertionMaster.cloneRule,
-    docClonerAssertionMaster.cloneStyleRule
+    docClonerAssertionMaster.cloneStyleRule,
+    docClonerAssertionMaster.cloneMediaRule
   );
 }
 

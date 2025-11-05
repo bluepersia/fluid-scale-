@@ -7,6 +7,7 @@ type GoldSightState = {
   rulesIndex: number;
   ruleIndex: number;
   styleRuleIndex: number;
+  mediaRuleIndex: number;
 };
 
 type DocClonerMaster = Master & {
