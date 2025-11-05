@@ -137,7 +137,7 @@ let cloneFluidProp = (
 ): ClonePropsState => {
   const { isBrowser, event, styleRule } = ctx;
   let { propsState } = ctx;
-  const eventKey = { property, styleRule };
+  const eventKey = { property, styleRule, eventType: "fluidProp" };
   const shorthandMap = SHORTHAND_PROPERTIES[property];
   if (shorthandMap) {
     if (isBrowser) {
