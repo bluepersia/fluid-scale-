@@ -190,35 +190,29 @@ const cloneFluidPropAssertionChain: AssertionChainForFunc<
   typeof cloneFluidProp
 > = {
   "should clone fluid prop": (state, args, result) =>
-    withEventNames(
-      args,
-      ["fluidPropCloned", "expandedShorthand", "propOmitted"],
-      (events) => {
-        const [property, , ctx] = args;
-        const { propsState } = ctx;
-        const masterRule = controller.findStyleRule(
-          state.master!.docClone,
-          state.styleRuleIndex - 1
+    withEventNames(args, ["fluidPropCloned", "expandedShorthand"], (events) => {
+      const [property, , ctx] = args;
+      const masterRule = controller.findStyleRule(
+        state.master!.docClone,
+        state.styleRuleIndex - 1
+      );
+      if (events.fluidPropCloned) {
+        FLUID_PROP_EVENTS_ROUTER.fluidPropCloned(
+          result.style,
+          masterRule!.style,
+          property
         );
-        if (events.fluidPropCloned) {
-          FLUID_PROP_EVENTS_ROUTER.fluidPropCloned(
-            result.style,
-            masterRule!.style,
-            property
-          );
-        } else if (events.expandedShorthand) {
-          FLUID_PROP_EVENTS_ROUTER.expandedShorthand(
-            result.style,
-            masterRule!.style,
-            property
-          );
-        } else if (events.propOmitted) {
-          FLUID_PROP_EVENTS_ROUTER.propOmitted(result, propsState);
-        } else {
-          throw Error("unknown event");
-        }
+      } else if (events.expandedShorthand) {
+        if (ctx.isBrowser) throw Error("Browser is processing a shorthand");
+        FLUID_PROP_EVENTS_ROUTER.expandedShorthand(
+          result.style,
+          masterRule!.style,
+          property
+        );
+      } else {
+        throw Error("unknown event");
       }
-    ),
+    }),
 };
 
 const cloneSpecialPropAssertionChain: AssertionChainForFunc<

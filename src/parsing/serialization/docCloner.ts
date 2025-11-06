@@ -136,31 +136,23 @@ let cloneFluidProp = (
   value: string,
   ctx: CloneFluidPropContext
 ): ClonePropsState => {
-  const { isBrowser, event, styleRule } = ctx;
+  const { event, styleRule } = ctx;
   let { propsState } = ctx;
   const eventKey = { property, styleRule, eventType: "fluidProp" };
   const shorthandMap = SHORTHAND_PROPERTIES[property];
-  if (shorthandMap) {
-    if (isBrowser) {
-      if (dev)
-        event?.emit("fluidPropOmitted", ctx, {
-          why: "browserHandlesShorthands",
-          ...eventKey,
-        });
-    } else {
-      const values = splitBySpaces(value);
-      const valuesCount = values.length;
-      const innerMap = shorthandMap.get(valuesCount)!;
-      propsState = { ...propsState, style: { ...propsState.style } };
-      for (let i = 0; i < valuesCount; i++) {
-        const value = values[i];
-        const explicitProps = innerMap.get(i)!;
-        for (let j = 0; j < explicitProps.length; j++) {
-          const explicitProp = explicitProps[j];
-          propsState.style[explicitProp] = normalizeZero(value);
-        }
-      }
 
+  if (shorthandMap) {
+    const values = splitBySpaces(value);
+    const valuesCount = values.length;
+    const innerMap = shorthandMap.get(valuesCount)!;
+    propsState = { ...propsState, style: { ...propsState.style } };
+    for (let i = 0; i < valuesCount; i++) {
+      const value = values[i];
+      const explicitProps = innerMap.get(i)!;
+      for (let j = 0; j < explicitProps.length; j++) {
+        const explicitProp = explicitProps[j];
+        propsState.style[explicitProp] = normalizeZero(value);
+      }
       event?.emit("expandedShorthand", ctx, eventKey);
     }
     return propsState;
