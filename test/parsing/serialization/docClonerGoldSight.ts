@@ -147,7 +147,7 @@ const clonePropAssertionChain: AssertionChainForFunc<
   GoldSightState,
   typeof cloneProp
 > = {
-  "should clone prop 2": (state, args, result) =>
+  "should clone prop": (state, args, result) =>
     withEventNames(
       args,
       [
@@ -186,62 +186,6 @@ const clonePropAssertionChain: AssertionChainForFunc<
         }
       }
     ),
-  "should clone prop": (state, args, result) =>
-    withEvents(args, (eventBus, eventUUID) => {
-      const [styleRule, property, ctx] = args;
-      const { propsState } = ctx;
-      const masterRule = controller.findStyleRule(
-        state.master!.docClone,
-        state.styleRuleIndex - 1
-      );
-      const fluidPropEvent = getEventByPayload(eventBus, "*", {
-        eventType: "fluidProp",
-        property,
-        styleRule,
-      });
-
-      const specialPropEvent = getEventByPayload(eventBus, "*", {
-        eventType: "specialProp",
-        property,
-        styleRule,
-      });
-
-      const omittedEvent = getEventByUUID(eventBus, "propOmitted", eventUUID);
-
-      if (fluidPropEvent) {
-        const event = fluidPropEvent;
-        if (event.name === "fluidPropCloned") {
-          FLUID_PROP_EVENTS_ROUTER.fluidPropCloned(
-            result.style,
-            masterRule!.style,
-            property
-          );
-        } else if (event.name === "expandedShorthand") {
-          FLUID_PROP_EVENTS_ROUTER.expandedShorthand(
-            result.style,
-            masterRule!.style,
-            property
-          );
-        } else if (event.name === "propOmitted") {
-          FLUID_PROP_EVENTS_ROUTER.propOmitted(result, propsState);
-        } else {
-          throw Error("unknown event");
-        }
-      } else if (specialPropEvent) {
-        const event = specialPropEvent;
-        if (event.name === "specialPropCloned") {
-          expect(result.specialProps[property]).toBe(
-            masterRule!.specialProps[property]
-          );
-        } else {
-          throw Error("unknown event");
-        }
-      } else if (omittedEvent) {
-        expect(result).toBe(propsState);
-      } else {
-        throw Error("unknown event");
-      }
-    }),
 };
 
 const cloneFluidPropAssertionChain: AssertionChainForFunc<
