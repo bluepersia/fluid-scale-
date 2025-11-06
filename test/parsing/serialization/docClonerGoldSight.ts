@@ -339,7 +339,10 @@ class DocClonerAssertionMaster extends AssertionMaster<
   );
   cloneStyleSheet = this.wrapFn(cloneStyleSheet, "cloneStyleSheet", {
     getAddress: (state, args) => {
-      return `sheetIndex:${state.sheetIndex}/href:${args[0].href || ""}`;
+      return {
+        sheetIndex: state.sheetIndex,
+        href: args[0].href || "",
+      };
     },
     post: (state) => {
       state.sheetIndex++;
@@ -347,11 +350,12 @@ class DocClonerAssertionMaster extends AssertionMaster<
   });
   cloneRules = this.wrapFn(cloneRules, "cloneRules", {
     getAddress: (state, args) => {
-      let base = `rulesIndex:${state.rulesIndex}`;
       const [, ctx] = args;
       const { rulesParent } = ctx;
-      base += `/parent:${rulesParent}`;
-      return base;
+      return {
+        rulesIndex: state.rulesIndex,
+        rulesParent: rulesParent,
+      };
     },
     post: (state) => {
       state.rulesIndex++;
@@ -359,18 +363,24 @@ class DocClonerAssertionMaster extends AssertionMaster<
   });
   cloneRule = this.wrapFn(cloneRule, "cloneRule", {
     getAddress: (state, args) => {
-      let base = `ruleIndex:${state.ruleIndex}`;
       const [rule, ctx] = args;
+      const base = { ruleIndex: state.ruleIndex };
       if (rule.type === STYLE_RULE_TYPE) {
         const styleRule = rule as CSSStyleRule;
-        base += `/selector:${styleRule.selectorText}/${
-          ctx.mediaWidth || "baseline"
-        }`;
+        return {
+          ...base,
+          selector: styleRule.selectorText,
+          mediaWidth: ctx.mediaWidth || "baseline",
+        };
       } else if (rule.type === MEDIA_RULE_TYPE) {
         const mediaRule = rule as CSSMediaRule;
-        base += `/mediaText:${mediaRule.media.mediaText}`;
+        return {
+          ...base,
+          mediaText: mediaRule.media.mediaText,
+        };
+      } else {
+        return base;
       }
-      return base;
     },
     post: (state, args) =>
       withEventNames(args, ["ruleCloned"], (events) => {
@@ -379,9 +389,11 @@ class DocClonerAssertionMaster extends AssertionMaster<
   });
   cloneStyleRule = this.wrapFn(cloneStyleRule, "cloneStyleRule", {
     getAddress: (state, args) => {
-      return `styleRuleIndex:${state.styleRuleIndex}/selector:${
-        args[0].selectorText || ""
-      }/mediaWidth:${args[1].mediaWidth || "baseline"}`;
+      return {
+        styleRuleIndex: state.styleRuleIndex,
+        selector: args[0].selectorText || "",
+        mediaWidth: args[1].mediaWidth || "baseline",
+      };
     },
     post: (state, args) =>
       withEventNames(args, ["styleRuleCloned"], (events) => {
@@ -390,7 +402,10 @@ class DocClonerAssertionMaster extends AssertionMaster<
   });
   cloneMediaRule = this.wrapFn(cloneMediaRule, "cloneMediaRule", {
     getAddress: (state, args) => {
-      return `mediaRuleIndex:${state.mediaRuleIndex}/mediaText:${args[0].media.mediaText}`;
+      return {
+        mediaRuleIndex: state.mediaRuleIndex,
+        mediaText: args[0].media.mediaText,
+      };
     },
     post: (state, args) =>
       withEventNames(args, ["mediaRuleCloned"], (events) => {
@@ -399,23 +414,29 @@ class DocClonerAssertionMaster extends AssertionMaster<
   });
   cloneProp = this.wrapFn(cloneProp, "cloneProp", {
     getAddress: (_state, args) => {
-      return `selector:${args[0].selectorText}/mediaWidth:${
-        args[2].mediaWidth || "baseline"
-      }/property:${args[1]}`;
+      return {
+        selector: args[0].selectorText,
+        mediaWidth: args[2].mediaWidth || "baseline",
+        property: args[1],
+      };
     },
   });
   cloneFluidProp = this.wrapFn(cloneFluidProp, "cloneFluidProp", {
     getAddress: (_state, args) => {
-      return `property:${args[0]}/styleRule:${
-        args[2].styleRule.selectorText
-      }/mediaWidth:${args[2].mediaWidth || "baseline"}`;
+      return {
+        property: args[0],
+        styleRule: args[2].styleRule.selectorText,
+        mediaWidth: args[2].mediaWidth || "baseline",
+      };
     },
   });
   cloneSpecialProp = this.wrapFn(cloneSpecialProp, "cloneSpecialProp", {
     getAddress: (_state, args) => {
-      return `property:${args[0]}/styleRule:${
-        args[2].styleRule.selectorText
-      }/mediaWidth:${args[2].mediaWidth || "baseline"}`;
+      return {
+        property: args[0],
+        styleRule: args[2].styleRule.selectorText,
+        mediaWidth: args[2].mediaWidth || "baseline",
+      };
     },
   });
 }
