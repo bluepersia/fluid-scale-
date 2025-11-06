@@ -3,10 +3,7 @@ if (process.env.NODE_ENV === "test") {
   expect = (await import("vitest")).expect;
 }
 import AssertionMaster, {
-  getEventByPayload,
-  getEventByUUID,
   withEventNames,
-  withEvents,
   type AssertionChainForFunc,
 } from "gold-sight";
 import type { DocClonerMaster, GoldSightState } from "./index.types";
