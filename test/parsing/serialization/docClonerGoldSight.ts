@@ -3,10 +3,8 @@ if (process.env.NODE_ENV === "test") {
   expect = (await import("vitest")).expect;
 }
 import AssertionMaster, {
-  filterEventsByPayload,
   getEventByPayload,
   getEventByUUID,
-  withEventBus,
   withEventNames,
   withEvents,
   type AssertionChainForFunc,
@@ -149,6 +147,45 @@ const clonePropAssertionChain: AssertionChainForFunc<
   GoldSightState,
   typeof cloneProp
 > = {
+  "should clone prop 2": (state, args, result) =>
+    withEventNames(
+      args,
+      [
+        "fluidPropCloned",
+        "expandedShorthand",
+        "specialPropCloned",
+        "propOmitted",
+      ],
+      (events) => {
+        const [, property, ctx] = args;
+        const { propsState } = ctx;
+        const masterRule = controller.findStyleRule(
+          state.master!.docClone,
+          state.styleRuleIndex - 1
+        );
+        if (events.fluidPropCloned) {
+          FLUID_PROP_EVENTS_ROUTER.fluidPropCloned(
+            result.style,
+            masterRule!.style,
+            property
+          );
+        } else if (events.expandedShorthand) {
+          FLUID_PROP_EVENTS_ROUTER.expandedShorthand(
+            result.style,
+            masterRule!.style,
+            property
+          );
+        } else if (events.specialPropCloned) {
+          expect(result.specialProps[property]).toBe(
+            masterRule!.specialProps[property]
+          );
+        } else if (events.propOmitted) {
+          expect(result).toBe(propsState);
+        } else {
+          throw Error("unknown event");
+        }
+      }
+    ),
   "should clone prop": (state, args, result) =>
     withEvents(args, (eventBus, eventUUID) => {
       const [styleRule, property, ctx] = args;
@@ -187,6 +224,8 @@ const clonePropAssertionChain: AssertionChainForFunc<
           );
         } else if (event.name === "propOmitted") {
           FLUID_PROP_EVENTS_ROUTER.propOmitted(result, propsState);
+        } else {
+          throw Error("unknown event");
         }
       } else if (specialPropEvent) {
         const event = specialPropEvent;
@@ -194,6 +233,8 @@ const clonePropAssertionChain: AssertionChainForFunc<
           expect(result.specialProps[property]).toBe(
             masterRule!.specialProps[property]
           );
+        } else {
+          throw Error("unknown event");
         }
       } else if (omittedEvent) {
         expect(result).toBe(propsState);
@@ -232,19 +273,11 @@ const cloneFluidPropAssertionChain: AssertionChainForFunc<
           );
         } else if (events.propOmitted) {
           FLUID_PROP_EVENTS_ROUTER.propOmitted(result, propsState);
-          expect(result).toBe(propsState);
+        } else {
+          throw Error("unknown event");
         }
       }
     ),
-  "should emit one event": (_state, args) =>
-    withEventBus(args, (eventBus) => {
-      const [property, , ctx] = args;
-      const { styleRule } = ctx;
-      const key = { property, styleRule };
-      const events = filterEventsByPayload(eventBus, "*", key);
-
-      expect(events.length).toBe(1);
-    }),
 };
 
 const cloneSpecialPropAssertionChain: AssertionChainForFunc<
@@ -265,15 +298,6 @@ const cloneSpecialPropAssertionChain: AssertionChainForFunc<
       } else {
         throw Error("unknown event");
       }
-    }),
-  "should emit one event": (_state, args) =>
-    withEventBus(args, (eventBus) => {
-      const [property, , ctx] = args;
-      const { styleRule } = ctx;
-      const key = { property, styleRule };
-      const events = filterEventsByPayload(eventBus, "*", key);
-
-      expect(events.length).toBe(1);
     }),
 };
 

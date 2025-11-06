@@ -143,7 +143,7 @@ let cloneFluidProp = (
   if (shorthandMap) {
     if (isBrowser) {
       if (dev)
-        event?.emit("propOmitted", ctx, {
+        event?.emit("fluidPropOmitted", ctx, {
           why: "browserHandlesShorthands",
           ...eventKey,
         });
