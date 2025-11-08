@@ -1,4 +1,4 @@
-import { getQueue, EventBus } from "gold-sight";
+import { getQueue, EventBus, makeEventContext } from "gold-sight";
 
 import {
   docClonerAssertionMaster,
@@ -9,4 +9,10 @@ wrapAllCloneDoc();
 
 import { cloneDoc } from "../../src/parsing/serialization/docCloner";
 
-export { getQueue, cloneDoc, docClonerAssertionMaster, EventBus };
+export {
+  getQueue,
+  cloneDoc,
+  docClonerAssertionMaster,
+  EventBus,
+  makeEventContext,
+};

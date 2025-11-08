@@ -6,11 +6,11 @@ import {
 } from "../../setup";
 import { docClonerCollection } from "./docClonerCollection.ts";
 import type { PlaywrightPage } from "../../index.types";
-import { EventBus, type AssertionBlueprint } from "gold-sight";
+import { type AssertionBlueprint } from "gold-sight";
+import { makeEventContext } from "gold-sight";
 import { docClonerAssertionMaster } from "./docClonerGoldSight";
 import { cloneDoc } from "../../../src/parsing/serialization/docCloner.ts";
 import { makeDefaultGlobal } from "../../../src/utils/global.ts";
-
 let playwrightPages: PlaywrightPage[] = [];
 
 beforeAll(async () => {
@@ -32,8 +32,7 @@ describe("docCloner", () => {
           (window as any).docClonerAssertionMaster.master = master;
           (window as any).cloneDoc(document, {
             isBrowser: true,
-            event: new (window as any).EventBus(),
-            eventUUID: "",
+            ...(window as any).makeEventContext(),
             counter: { orderID: -1 },
           });
 
@@ -59,8 +58,7 @@ describe("docCloner", () => {
         ...makeDefaultGlobal(),
         isBrowser: false,
         counter: { orderID: -1 },
-        event: new EventBus(),
-        eventUUID: "",
+        ...makeEventContext(),
       });
 
       docClonerAssertionMaster.assertQueue({ master });

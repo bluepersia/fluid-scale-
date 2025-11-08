@@ -126,8 +126,9 @@ let cloneProp = (
     propsState = cloneFluidProp(property, value, { ...ctx, styleRule });
   } else if (SPECIAL_PROPERTIES.has(property)) {
     propsState = cloneSpecialProp(property, value, { ...ctx, styleRule });
+  } else {
+    if (dev) event?.emit("propOmitted", ctx, { why: "notFluidOrSpecial" });
   }
-  if (dev) event?.emit("propOmitted", ctx, { why: "notFluidOrSpecial" });
   return propsState;
 };
 

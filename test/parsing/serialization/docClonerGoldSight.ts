@@ -70,6 +70,7 @@ const cloneRuleAssertionChain: AssertionChainForFunc<
 > = {
   "should clone rule": (state, args, result) =>
     withEventNames(args, ["ruleCloned", "ruleOmitted"], (events) => {
+      expect(Object.keys(events).length).toBe(1);
       if (events.ruleCloned) {
         expect(result).toEqual(
           controller.findRule(state.master!.docClone, state.ruleIndex)
@@ -88,6 +89,8 @@ const cloneStyleRuleAssertionChain: AssertionChainForFunc<
 > = {
   "should clone style rule": (state, args, result) =>
     withEventNames(args, ["styleRuleCloned", "styleRuleOmitted"], (events) => {
+      expect(Object.keys(events).length).toBe(1);
+
       if (events.styleRuleCloned) {
         expect(result).toEqual(
           controller.findStyleRule(state.master!.docClone, state.styleRuleIndex)
@@ -106,6 +109,7 @@ const cloneMediaRuleAssertionChain: AssertionChainForFunc<
 > = {
   "should clone media rule": (state, args, result) =>
     withEventNames(args, ["mediaRuleCloned", "mediaRuleOmitted"], (events) => {
+      expect(Object.keys(events).length).toBe(1);
       if (events.mediaRuleCloned) {
         expect(result).toEqual(
           controller.findMediaRule(state.master!.docClone, state.mediaRuleIndex)
@@ -154,6 +158,8 @@ const clonePropAssertionChain: AssertionChainForFunc<
         "propOmitted",
       ],
       (events) => {
+        expect(Object.keys(events).length).toBe(1);
+
         const [, property, ctx] = args;
         const { propsState } = ctx;
         const masterRule = controller.findStyleRule(
@@ -191,7 +197,9 @@ const cloneFluidPropAssertionChain: AssertionChainForFunc<
 > = {
   "should clone fluid prop": (state, args, result) =>
     withEventNames(args, ["fluidPropCloned", "expandedShorthand"], (events) => {
+      expect(Object.keys(events).length).toBe(1);
       const [property, , ctx] = args;
+
       const masterRule = controller.findStyleRule(
         state.master!.docClone,
         state.styleRuleIndex - 1
@@ -221,6 +229,8 @@ const cloneSpecialPropAssertionChain: AssertionChainForFunc<
 > = {
   "should clone special prop": (state, args, result) =>
     withEventNames(args, ["specialPropCloned"], (events) => {
+      expect(Object.keys(events).length).toBe(1);
+
       const [property] = args;
       const masterRule = controller.findStyleRule(
         state.master!.docClone,
