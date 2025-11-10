@@ -35,7 +35,7 @@ describe("docCloner", () => {
         ...makeEventContext(),
       });
 
-      docClonerAssertionMaster.assertQueue({ master });
+      docClonerAssertionMaster.assertQueue();
     }
   );
 
