@@ -1,4 +1,5 @@
-import type { EventContext, Global } from "../../index.types";
+import type { Global } from "../../index.types";
+import type { EventContext } from "gold-sight";
 
 type CloneDocContext = Global &
   EventContext & {
