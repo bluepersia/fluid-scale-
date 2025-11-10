@@ -23,6 +23,23 @@ afterAll(async () => {
 
 describe("docCloner", () => {
   test.each(docClonerCollection)(
+    "should clone the JSDOM document",
+    async (master) => {
+      const { index } = master;
+      const { doc } = JSDOMDocs[index];
+      docClonerAssertionMaster.master = master;
+      cloneDoc(doc, {
+        ...makeDefaultGlobal(),
+        isBrowser: false,
+        counter: { orderID: -1 },
+        ...makeEventContext(),
+      });
+
+      docClonerAssertionMaster.assertQueue();
+    }
+  );
+
+  test.each(docClonerCollection)(
     "should clone the document",
     async (master) => {
       const { index } = master;
@@ -44,23 +61,6 @@ describe("docCloner", () => {
       );
 
       docClonerAssertionMaster.setQueueFromArray(queue);
-      docClonerAssertionMaster.assertQueue({ master });
-    }
-  );
-
-  test.each(docClonerCollection)(
-    "should clone the JSDOM document",
-    async (master) => {
-      const { index } = master;
-      const { doc } = JSDOMDocs[index];
-      docClonerAssertionMaster.master = master;
-      cloneDoc(doc, {
-        ...makeDefaultGlobal(),
-        isBrowser: false,
-        counter: { orderID: -1 },
-        ...makeEventContext(),
-      });
-
       docClonerAssertionMaster.assertQueue({ master });
     }
   );
