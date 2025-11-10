@@ -20,12 +20,14 @@ export default defineConfig([
       "vite.config.{js,ts}",
       "scripts/**/*.{js,ts}",
     ],
+
     plugins: { js, playwright },
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
       playwright.configs.recommended,
     ],
+
     languageOptions: {
       globals: {
         ...globals.node,
